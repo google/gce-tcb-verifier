@@ -1,0 +1,68 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package cloud_vmm_proto;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/google/gce-tcb-verifier/proto/endorsement";
+
+message VMLaunchEndorsement {
+  bytes serialized_uefi_golden = 1;
+  bytes signature = 2;
+}
+
+message VMGoldenMeasurement {
+  google.protobuf.Timestamp timestamp = 1;
+
+  // The changelist number this UEFI was built from.
+  uint64 cl_spec = 2;
+
+  // The commit hash this UEFI was built from.
+  bytes commit = 3;
+
+  // DER format certificate of the key that signed this document.
+  bytes cert = 4;
+
+  // SHA-384 digest of the UEFI binary without TEE-specifics about launch.
+  bytes digest = 5;
+
+  // A sequence of PEM-encoded certificates of keys used in cert in Root ...
+  // final intermediate order. The last certificate will have signed cert.
+  bytes ca_bundle = 6;
+  VMSevSnp sev_snp = 7;
+}
+
+message VMSevSnp {
+  // The Google-reported security version number of this UEFI on SEV-SNP.
+  uint32 svn = 1;
+
+  // Expected MEASUREMENT report field values given [key]-many VMSAs at launch.
+  map<uint32, bytes> measurements = 2;  // bytes size 48
+
+  // A UUID that Google uses for its CVM UEFIs
+  bytes family_id = 3;  // size 16
+
+  // A UUID to name this specific release of the UEFI image.
+  bytes image_id = 4;  // size 16
+
+  // The launch policy that verifiers should expect with this UEFI.
+  uint64 policy = 5;
+
+  // Optional. PEM-encoded certs for Identity..Author..Root. If a singleton,
+  // only an Id-key is used.
+  bytes ca_bundle = 6;
+}

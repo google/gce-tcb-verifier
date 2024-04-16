@@ -1,0 +1,121 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package sev_proto;
+
+option go_package = "github.com/google/gce-tcb-verifier/proto/sev";
+
+// Mirrors struct vmcb_seg in arch/x86/include/asm/svm.h.
+message VmcbSeg {
+  uint32 selector = 1;  // uint16_t
+
+  uint32 attrib = 2;  // uint16_t
+
+  uint32 limit = 3;
+  uint64 base = 4;
+}
+
+// VMCB Save Area (VMSA) used when SEV-ES is enabled. Mirrors struct
+// vmcb_save_area in arch/x86/include/asm/svm.h.
+message VmcbSaveArea {
+  VmcbSeg es = 1;
+  VmcbSeg cs = 2;
+  VmcbSeg ss = 3;
+  VmcbSeg ds = 4;
+  VmcbSeg fs = 5;
+  VmcbSeg gs = 6;
+  VmcbSeg gdtr = 7;
+  VmcbSeg ldtr = 8;
+  VmcbSeg idtr = 9;
+  VmcbSeg tr = 10;
+  bytes reserved_1 = 11;  // 43 bytes
+
+  uint32 cpl = 12;  // uint8_t
+
+  bytes reserved_2 = 13;  // 4 bytes
+
+  uint64 efer = 14;
+  bytes reserved_3 = 15;  // 104 bytes
+
+  uint64 xss = 16;
+  uint64 cr4 = 17;
+  uint64 cr3 = 18;
+  uint64 cr0 = 19;
+  uint64 dr7 = 20;
+  uint64 dr6 = 21;
+  uint64 rflags = 22;
+  uint64 rip = 23;
+  bytes reserved_4 = 24;  // 88 bytes
+
+  uint64 rsp = 25;
+  bytes reserved_5 = 26;  // 24 bytes
+
+  uint64 rax = 27;
+  uint64 star = 28;
+  uint64 lstar = 29;
+  uint64 cstar = 30;
+  uint64 sfmask = 31;
+  uint64 kernel_gs_base = 32;
+  uint64 sysenter_cs = 33;
+  uint64 sysenter_esp = 34;
+  uint64 sysenter_eip = 35;
+  uint64 cr2 = 36;
+  bytes reserved_6 = 37;  // 32 bytes
+
+  uint64 g_pat = 38;
+  uint64 dbgctl = 39;
+  uint64 br_from = 40;
+  uint64 br_to = 41;
+  uint64 last_excp_from = 42;
+  uint64 last_excp_to = 43;
+
+  // SEV-ES fields.
+  bytes reserved_7 = 44;  // 80 bytes
+
+  uint32 pkru = 45;
+  bytes reserved_7a = 46;  // 20 bytes
+
+  uint64 reserved_8 = 47;
+  uint64 rcx = 48;
+  uint64 rdx = 49;
+  uint64 rbx = 50;
+  uint64 reserved_9 = 51;
+  uint64 rbp = 52;
+  uint64 rsi = 53;
+  uint64 rdi = 54;
+  uint64 r8 = 55;
+  uint64 r9 = 56;
+  uint64 r10 = 57;
+  uint64 r11 = 58;
+  uint64 r12 = 59;
+  uint64 r13 = 60;
+  uint64 r14 = 61;
+  uint64 r15 = 62;
+  bytes reserved_10 = 63;  // 16 bytes
+
+  uint64 sw_exit_code = 64;
+  uint64 sw_exit_info_1 = 65;
+  uint64 sw_exit_info_2 = 66;
+  uint64 sw_scratch = 67;
+  uint64 sev_features = 68;
+  bytes reserved_11 = 69;  // 48 bytes
+
+  uint64 xcr0 = 70;
+  bytes valid_bitmap = 71;  // 16 bytes
+
+  uint64 x87_state_gpa = 72;
+  bytes reserved_12 = 73;  // 1016 bytes
+}
