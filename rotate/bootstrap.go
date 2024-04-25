@@ -17,9 +17,10 @@ package rotate
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"math/big"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/google/gce-tcb-verifier/cmd/output"
 	"github.com/google/gce-tcb-verifier/keys"
@@ -82,9 +83,6 @@ func Bootstrap(ctx context.Context) error {
 	signingKeyVersion, err := c.Manager.CreateFirstSigningKey(ctx)
 	if err != nil {
 		return fmt.Errorf("could not create signing key: %w", err)
-	}
-	if err != nil {
-		return fmt.Errorf("could not create key assets: %w", err)
 	}
 
 	mut := c.CA.NewMutation()
