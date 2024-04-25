@@ -30,7 +30,6 @@ import (
 
 	iampb "cloud.google.com/go/iam/apiv1/iampb"
 
-	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -227,7 +226,7 @@ func (s *KeyManagementServer) DestroyCryptoKeyVersion(_ context.Context, req *km
 
 // InitGrpcKmsTestServers creates a server for the given KMS and IAMPolicy server implementations
 // and returns gRPC connections that can be used to make clients.
-func InitGrpcKmsTestServers(t testing.TB, m kmspb.KeyManagementServiceServer, i iampb.IAMPolicyServer) option.ClientOption {
+func InitGrpcKmsTestServers(t testing.TB, m kmspb.KeyManagementServiceServer, i iampb.IAMPolicyServer) grpc.ClientConnInterface {
 	serv := grpc.NewServer()
 	kmspb.RegisterKeyManagementServiceServer(serv, m)
 	iampb.RegisterIAMPolicyServer(serv, i)
@@ -241,7 +240,7 @@ func InitGrpcKmsTestServers(t testing.TB, m kmspb.KeyManagementServiceServer, i 
 	if err != nil {
 		t.Fatalf("could not create new client for test KMS server: %v", err)
 	}
-	return option.WithGRPCConn(conn)
+	return conn
 }
 
 // IAMPolicyServer is a mock IAM service client server that only deals with no-op policies.
