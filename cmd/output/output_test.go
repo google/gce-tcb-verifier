@@ -15,8 +15,8 @@
 package output
 
 import (
+	"context"
 	"errors"
-	"golang.org/x/net/context"
 
 	"os"
 	"testing"

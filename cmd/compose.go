@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	"golang.org/x/net/context"
+	"context"
 	"io"
 
 	"github.com/spf13/cobra"
@@ -155,7 +155,7 @@ func (p *PartialComponent) PersistentPreRunE(cmd *cobra.Command, args []string) 
 
 // ComposeRun will return run called with a command's context that has been extended by cmp's
 // InitContext if cmp is non-nil.
-func ComposeRun(cmp CommandComponent, run func(context.Context) error) runFn {
+func ComposeRun(cmp CommandComponent, run func(context.Context) error) RunFn {
 	return func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		if cmp != nil {

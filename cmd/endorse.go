@@ -15,13 +15,12 @@
 package cmd
 
 import (
+	"context"
 	"crypto"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 	"time"
 
@@ -35,19 +34,6 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 )
-
-var (
-	alphanumericRegex *regexp.Regexp
-	rcPathRegex       *regexp.Regexp
-)
-
-func init() {
-	alphanumericRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]*$`)
-	// 9 to 12 numbers '.' 1 to 4 numbers. The first number relates to the release's base CL number.
-	// The trailing number is shorter since it's the number of release candidate on the given release.
-	// Allowing thousands while typically there's < 100 is generous.
-	rcPathRegex = regexp.MustCompile(`^\d{9,12}\.\d{1,4}$`)
-}
 
 // endorseCommand stores the common flag values for the endorse subcommand that isn't directly
 // represented in endorse.Context.
@@ -167,7 +153,7 @@ func (f *endorseCommand) InitContext(ctx context.Context) (context.Context, erro
 	// initialization.
 	ec.Image, err = os.ReadFile(f.UefiPath)
 	if err != nil {
-		return nil, fmt.Errorf("Could not read UEFI file %s: %v", f.UefiPath, err)
+		return nil, fmt.Errorf("could not read UEFI file %s: %v", f.UefiPath, err)
 	}
 
 	return ctx, nil

@@ -145,16 +145,16 @@ func TestExtractSevSnp(t *testing.T) {
 		t.Errorf("%v.SnpMetadataSections() errored unexpectedly: %v", data, err)
 	}
 	want := []abi.SevMetadataSection{
-		abi.SevMetadataSection{
+		{
 			Address: ovmfsev.SevSnpValidatedStartAddr,
 			Length:  ovmfsev.SevSnpValidatedLength,
 			Kind:    abi.SevUnmeasuredSection},
-		abi.SevMetadataSection{
+		{
 			Address: ovmfsev.SevSnpCpuidAddr,
 			Length:  abi.PageSize,
 			Kind:    abi.SevCpuidSection,
 		},
-		abi.SevMetadataSection{
+		{
 			Address: ovmfsev.SevSnpSecretAddr,
 			Length:  abi.PageSize,
 			Kind:    abi.SevSecretSection,
@@ -207,7 +207,6 @@ func TestSnpMetadataSections(t *testing.T) {
 		setup       func(f *OvmfSevDataTest) error
 		want        expectation
 		wantExtract expectation
-		wantInit    expectation
 	}
 	initWith := func(sections []abi.SevMetadataSection) func(f *OvmfSevDataTest) error {
 		return func(f *OvmfSevDataTest) error {
@@ -259,10 +258,11 @@ func TestSnpMetadataSections(t *testing.T) {
 					ovmfsev.SevSnpValidatedLength+abi.PageSize),
 				ovmfsev.SnpCpuidSectionDefault(), ovmfsev.SnpSecretSectionDefault(),
 				// Add an extra page of unknown type to see what that renders as.
-				abi.SevMetadataSection{
+				{
 					Address: ovmfsev.SevSnpValidatedStartAddr + ovmfsev.SevSnpValidatedLength,
 					Length:  abi.PageSize,
-					Kind:    0x420},
+					Kind:    0x420,
+				},
 			}),
 			want: contains("SEV section OVMF_SECTION_TYPE_SNP_SEC_MEM: [0xff001000-0xff003000] overlaps with [unknown SNP metadata section type: 0x420]: [0xff002000-0xff003000]"),
 		},

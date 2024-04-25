@@ -17,9 +17,9 @@
 package testkm
 
 import (
+	"context"
 	"crypto/x509"
 	"fmt"
-	"golang.org/x/net/context"
 	"math/big"
 	"testing"
 	"time"

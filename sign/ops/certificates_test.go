@@ -15,10 +15,10 @@
 package ops
 
 import (
+	"context"
 	"crypto"
 	"crypto/x509"
 	"fmt"
-	"golang.org/x/net/context"
 	"math/big"
 	"sync"
 	"testing"
@@ -86,11 +86,11 @@ func createRootCert(t *testing.T) func() {
 
 type badSigner struct{}
 
-func (s *badSigner) PublicKey(ctx context.Context, keyName string) ([]byte, error) {
+func (s *badSigner) PublicKey(context.Context, string) ([]byte, error) {
 	return nil, nil
 }
 
-func (s *badSigner) Sign(ctx context.Context, keyName string, digest styp.Digest, opts crypto.SignerOpts) ([]byte, error) {
+func (s *badSigner) Sign(context.Context, string, styp.Digest, crypto.SignerOpts) ([]byte, error) {
 	return nil, fmt.Errorf("badSigner.Signer: unimplemented")
 }
 

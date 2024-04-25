@@ -17,7 +17,7 @@ package cmd
 import (
 	"crypto/x509"
 	"fmt"
-	"golang.org/x/net/context"
+	"context"
 	"os"
 
 	"github.com/google/gce-tcb-verifier/gcetcbendorsement/lib/gcetcbendorsement"

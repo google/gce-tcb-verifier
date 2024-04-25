@@ -15,9 +15,9 @@
 package rotate
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 
 	"github.com/google/gce-tcb-verifier/cmd/output"
 	"github.com/google/gce-tcb-verifier/keys"

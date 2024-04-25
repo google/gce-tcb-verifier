@@ -16,7 +16,7 @@ package storage
 
 import (
 	"bytes"
-	"golang.org/x/net/context"
+	"context"
 	"io"
 	"testing"
 )

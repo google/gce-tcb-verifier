@@ -16,10 +16,10 @@
 package memkm
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"golang.org/x/net/context"
 	"os"
 	"strconv"
 	"strings"
@@ -207,13 +207,13 @@ func (k *T) CreateNewRootKey(ctx context.Context) (string, error) {
 }
 
 // DestroyKeyVersion destroys a single key version.
-func (k *T) DestroyKeyVersion(ctx context.Context, keyVersionName string) error {
+func (k *T) DestroyKeyVersion(_ context.Context, keyVersionName string) error {
 	k.Signer.DestroyKeyVersion(keyVersionName)
 	return nil
 }
 
 // Wipeout destroys all keys managed by this manager.
-func (k *T) Wipeout(ctx context.Context) error {
+func (k *T) Wipeout(context.Context) error {
 	k.Signer.ClearKeys()
 	return nil
 }
@@ -233,10 +233,10 @@ func (k *T) InitContext(ctx context.Context) (context.Context, error) {
 }
 
 // AddFlags adds any implementation-specific flags for this command component.
-func (k *T) AddFlags(cmd *cobra.Command) {}
+func (k *T) AddFlags(*cobra.Command) {}
 
 // PersistentPreRunE returns an error if the results of the parsed flags constitute an error.
-func (k *T) PersistentPreRunE(cmd *cobra.Command, args []string) error { return nil }
+func (k *T) PersistentPreRunE(*cobra.Command, []string) error { return nil }
 
 // TestOnlyT returns a T instance populated with pre-generated keys for development.
 func TestOnlyT() *T {

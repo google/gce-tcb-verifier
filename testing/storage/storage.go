@@ -17,9 +17,12 @@ package storage
 
 import (
 	"bytes"
-	"golang.org/x/net/context"
 	"io"
 	"os"
+
+	"golang.org/x/exp/slices"
+
+	"context"
 )
 
 // ReaderResponse is the reader or error that Reader returns for a specific object.
@@ -85,7 +88,7 @@ type ObjectReader struct {
 	CloseErr error
 }
 
-func (r *ObjectReader) Read(b []byte) (int, error) {
+func (r *ObjectReader) Read([]byte) (int, error) {
 	return 0, r.ReadErr
 }
 
@@ -133,7 +136,8 @@ func (w *ObjectWriter) Close() error {
 	return nil
 }
 
-func (s *Mock) Reader(ctx context.Context, bucket, object string) (io.ReadCloser, error) {
+// Reader returns a reader object for the given object path.
+func (s *Mock) Reader(_ context.Context, bucket, object string) (io.ReadCloser, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -148,6 +152,7 @@ func (s *Mock) Reader(ctx context.Context, bucket, object string) (io.ReadCloser
 	return nil, os.ErrNotExist
 }
 
+// Exists returns if the object exists in the given bucket.
 func (s *Mock) Exists(ctx context.Context, bucket, object string) (bool, error) {
 	if _, err := s.Reader(ctx, bucket, object); err != nil {
 		if s.IsNotExists(err) {
@@ -158,7 +163,8 @@ func (s *Mock) Exists(ctx context.Context, bucket, object string) (bool, error) 
 	return true, s.err
 }
 
-func (s *Mock) Writer(ctx context.Context, bucket, object string) (io.WriteCloser, error) {
+// Writer returns a writer object for the given object.
+func (s *Mock) Writer(_ context.Context, bucket, object string) (io.WriteCloser, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -179,7 +185,7 @@ func (s *Mock) IsNotExists(err error) bool {
 }
 
 // EnsureBucketExists does nothing.
-func (s *Mock) EnsureBucketExists(ctx context.Context, bucket string) error {
+func (s *Mock) EnsureBucketExists(_ context.Context, bucket string) error {
 	if s.err != nil {
 		return s.err
 	}
@@ -218,7 +224,7 @@ func (s *Mock) Clone() *Mock {
 		err:             s.err,
 	}
 	cloneResponse := func(bucket, objName string, resp *Responses) *Responses {
-		cell := &FakeObject{Data: bytes.Clone(resp.Cell.Data)}
+		cell := &FakeObject{Data: slices.Clone(resp.Cell.Data)}
 		return &Responses{
 			Cell:     cell,
 			ReadResp: &ReaderResponse{ReaderMaker: mkReaderMaker(cell), Err: resp.ReadResp.Err},
@@ -248,7 +254,7 @@ func (s *Mock) Clone() *Mock {
 }
 
 // Wipeout deletes all objects under the given bucket.
-func (s *Mock) Wipeout(ctx context.Context, bucket string) error {
+func (s *Mock) Wipeout(_ context.Context, bucket string) error {
 	if _, ok := s.BucketObjects[bucket]; !ok {
 		return os.ErrNotExist
 	}

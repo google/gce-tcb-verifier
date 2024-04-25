@@ -17,7 +17,7 @@ package gcetcbendorsement
 import (
 	"crypto/x509"
 	"fmt"
-	"golang.org/x/net/context"
+	"context"
 	"time"
 
 	"github.com/google/gce-tcb-verifier/extract/extractsev"

@@ -16,11 +16,10 @@ package gcsca
 
 import (
 	"bytes"
+	"context"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/pem"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"math/big"
 	"strings"
@@ -206,10 +205,6 @@ func testData(initialObjects map[string][]byte) *CertificateAuthority {
 		PrivateBucket:       "test",
 		SigningCertDirInGCS: "certs",
 	}
-}
-
-func pemCert(data []byte) []byte {
-	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: data})
 }
 
 // The input isn't an x509.Certificate, so just treat it like the Raw x509 certificate data.

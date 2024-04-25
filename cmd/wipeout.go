@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/google/gce-tcb-verifier/rotate"
 	"github.com/spf13/cobra"

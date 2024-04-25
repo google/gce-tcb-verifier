@@ -16,8 +16,8 @@
 package certs
 
 import (
+	"context"
 	"crypto/x509"
-	"golang.org/x/net/context"
 	"math/big"
 	"time"
 

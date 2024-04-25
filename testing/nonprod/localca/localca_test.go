@@ -15,7 +15,7 @@
 package localca
 
 import (
-	"golang.org/x/net/context"
+	"context"
 	"os"
 	"path"
 	"strings"
@@ -62,7 +62,7 @@ func phasedArgs(phase int, bucket string) func(t testing.TB) []string {
 		}
 		if phase > 4 {
 			manifest.Entries = []*cpb.GCECertificateManifest_Entry{
-				&cpb.GCECertificateManifest_Entry{
+				{
 					KeyVersionName: "primarySigningKey",
 					ObjectPath:     primaryKeyObject,
 				},
@@ -102,7 +102,7 @@ func create(t testing.TB, getArgs func(testing.TB) []string) (context.Context, s
 
 	component := &T{}
 	cmd := &cobra.Command{
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			_, err := component.InitContext(cmd.Context())
 			return err
 		},

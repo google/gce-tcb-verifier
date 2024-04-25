@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/google/gce-tcb-verifier/cmd/output"
 	"github.com/google/gce-tcb-verifier/keys"
@@ -54,4 +54,5 @@ This tool allows signing with CloudKMS keys, provided RSA keys, or generated key
 	return cmd
 }
 
-type runFn func(*cobra.Command, []string) error
+// RunFn is the type of a cobra error-returning runner function.
+type RunFn func(*cobra.Command, []string) error

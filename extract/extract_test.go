@@ -80,7 +80,7 @@ func TestExtractEndorsement(t *testing.T) {
 
 	goodGetter := &test.Getter{
 		Responses: map[string][]test.GetResponse{
-			"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.binarypb": []test.GetResponse{{Body: []byte("ding ding")}},
+			"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.binarypb": {{Body: []byte("ding ding")}},
 		},
 	}
 	tcs := []struct {

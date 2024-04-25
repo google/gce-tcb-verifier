@@ -20,7 +20,7 @@ import (
 	"math/big"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/google/gce-tcb-verifier/cmd/output"
 	"github.com/google/gce-tcb-verifier/keys"

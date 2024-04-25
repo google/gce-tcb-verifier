@@ -16,7 +16,7 @@ package cmd
 
 import (
 	"fmt"
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/google/gce-tcb-verifier/extract"
 	"github.com/spf13/cobra"

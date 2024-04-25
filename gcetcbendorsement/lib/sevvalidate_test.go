@@ -18,7 +18,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
-	"golang.org/x/net/context"
+	"context"
 	"os"
 	"path"
 	"testing"

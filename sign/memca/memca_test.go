@@ -15,7 +15,7 @@
 package memca
 
 import (
-	"golang.org/x/net/context"
+	"context"
 	"testing"
 
 	"github.com/google/gce-tcb-verifier/testing/testca"

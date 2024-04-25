@@ -16,8 +16,8 @@
 package verifytest
 
 import (
+	"context"
 	"crypto/x509"
-	"golang.org/x/net/context"
 	"os"
 	"path"
 	"testing"

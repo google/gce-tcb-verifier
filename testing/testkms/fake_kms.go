@@ -15,8 +15,8 @@
 package testkms
 
 import (
+	"context"
 	"fmt"
-	"golang.org/x/net/context"
 	"hash/crc32"
 	"strconv"
 	"strings"
@@ -148,7 +148,8 @@ func keyVersionInKey(name string, parent string) (bool, error) {
 	return (rk.project == rp.project && rk.location == rp.location && rk.keyring == rp.keyring && rk.keyID == rp.keyID), nil
 }
 
-func (s *FakeKmsServer) ListCryptoKeys(ctx context.Context, req *kmspb.ListCryptoKeysRequest) (*kmspb.ListCryptoKeysResponse, error) {
+// ListCryptoKeys returns the crypto keys under a key ring.
+func (s *FakeKmsServer) ListCryptoKeys(_ context.Context, req *kmspb.ListCryptoKeysRequest) (*kmspb.ListCryptoKeysResponse, error) {
 	seen := make(map[string]bool)
 	result := &kmspb.ListCryptoKeysResponse{}
 	for keyName, key := range s.createdCryptoKeys {
@@ -217,7 +218,8 @@ func (s *FakeKmsServer) listKeyVersionsUnder(parent string) ([]*kmspb.CryptoKeyV
 	return result, nil
 }
 
-func (s *FakeKmsServer) ListCryptoKeyVersions(ctx context.Context, req *kmspb.ListCryptoKeyVersionsRequest) (*kmspb.ListCryptoKeyVersionsResponse, error) {
+// ListCryptoKeyVersions returns the crypto key versions under a crypto key.
+func (s *FakeKmsServer) ListCryptoKeyVersions(_ context.Context, req *kmspb.ListCryptoKeyVersionsRequest) (*kmspb.ListCryptoKeyVersionsResponse, error) {
 	keyVersions, err := s.listKeyVersionsUnder(req.GetParent())
 	if err != nil {
 		return nil, err
@@ -229,7 +231,8 @@ func (s *FakeKmsServer) ListCryptoKeyVersions(ctx context.Context, req *kmspb.Li
 	return result, nil
 }
 
-func (s *FakeKmsServer) GetKeyRing(ctx context.Context, req *kmspb.GetKeyRingRequest) (*kmspb.KeyRing, error) {
+// GetKeyRing returns the keyring object handle for a named keyring.
+func (s *FakeKmsServer) GetKeyRing(_ context.Context, req *kmspb.GetKeyRingRequest) (*kmspb.KeyRing, error) {
 	for keyVersionName := range s.Signer.Keys {
 		keyRingName, err := keyRingFromKeyVersion(keyVersionName)
 		if err != nil {
@@ -269,11 +272,13 @@ func (s *FakeKmsServer) getCryptoKeyByName(name string) (*kmspb.CryptoKey, error
 	return nil, status.Errorf(codes.NotFound, "crypto key %s not found", name)
 }
 
-func (s *FakeKmsServer) GetCryptoKey(ctx context.Context, req *kmspb.GetCryptoKeyRequest) (key *kmspb.CryptoKey, err error) {
+// GetCryptoKey returns the object handle for a named crypto key.
+func (s *FakeKmsServer) GetCryptoKey(_ context.Context, req *kmspb.GetCryptoKeyRequest) (key *kmspb.CryptoKey, err error) {
 	return s.getCryptoKeyByName(req.Name)
 }
 
-func (s *FakeKmsServer) GetCryptoKeyVersion(ctx context.Context, req *kmspb.GetCryptoKeyVersionRequest) (key *kmspb.CryptoKeyVersion, err error) {
+// GetCryptoKeyVersion returns the object handle for a named crypto key version.
+func (s *FakeKmsServer) GetCryptoKeyVersion(_ context.Context, req *kmspb.GetCryptoKeyVersionRequest) (key *kmspb.CryptoKeyVersion, err error) {
 	if s.createdCryptoKeyVersions != nil {
 		if keyVersion, ok := s.createdCryptoKeyVersions[req.Name]; ok {
 			return keyVersion, nil
@@ -288,6 +293,7 @@ func (s *FakeKmsServer) GetCryptoKeyVersion(ctx context.Context, req *kmspb.GetC
 	}, nil
 }
 
+// GetPublicKey returns the named crypto key version's public key.
 func (s *FakeKmsServer) GetPublicKey(ctx context.Context, req *kmspb.GetPublicKeyRequest) (*kmspb.PublicKey, error) {
 	pem, err := s.Signer.PublicKey(ctx, req.Name)
 	if err != nil {
@@ -302,7 +308,8 @@ func (s *FakeKmsServer) GetPublicKey(ctx context.Context, req *kmspb.GetPublicKe
 	}, nil
 }
 
-func (s *FakeKmsServer) CreateKeyRing(ctx context.Context, req *kmspb.CreateKeyRingRequest) (keyring *kmspb.KeyRing, err error) {
+// CreateKeyRing creates a key ring and returns its object handle.
+func (s *FakeKmsServer) CreateKeyRing(_ context.Context, req *kmspb.CreateKeyRingRequest) (keyring *kmspb.KeyRing, err error) {
 	if _, ok := s.createdKeyRings[req.GetParent()]; ok {
 		return nil, status.Errorf(codes.AlreadyExists, "keyRing %s already exists", req.GetParent())
 	}
@@ -343,7 +350,8 @@ func (s *FakeKmsServer) registerCryptoKey(req *kmspb.CreateCryptoKeyRequest) (*k
 	return key, nil
 }
 
-func (s *FakeKmsServer) CreateCryptoKey(ctx context.Context, req *kmspb.CreateCryptoKeyRequest) (key *kmspb.CryptoKey, err error) {
+// CreateCryptoKey creates a crypto key and returns its object handle.
+func (s *FakeKmsServer) CreateCryptoKey(_ context.Context, req *kmspb.CreateCryptoKeyRequest) (key *kmspb.CryptoKey, err error) {
 	key, err = s.registerCryptoKey(req)
 	if err != nil {
 		return nil, err
@@ -414,7 +422,8 @@ func (s *FakeKmsServer) makeVersionUnderCryptoKey(key *kmspb.CryptoKey) (*kmspb.
 	return keyVersion, nil
 }
 
-func (s *FakeKmsServer) CreateCryptoKeyVersion(ctx context.Context, req *kmspb.CreateCryptoKeyVersionRequest) (key *kmspb.CryptoKeyVersion, err error) {
+// CreateCryptoKeyVersion creates a new crypto key version under a given crypto key.
+func (s *FakeKmsServer) CreateCryptoKeyVersion(_ context.Context, req *kmspb.CreateCryptoKeyVersionRequest) (key *kmspb.CryptoKeyVersion, err error) {
 	ck, err := s.getCryptoKeyByName(req.GetParent())
 	if err != nil {
 		return nil, err
@@ -422,6 +431,7 @@ func (s *FakeKmsServer) CreateCryptoKeyVersion(ctx context.Context, req *kmspb.C
 	return s.makeVersionUnderCryptoKey(ck)
 }
 
+// AsymmetricSign signs a given digest with a named crypto key version's private key.
 func (s *FakeKmsServer) AsymmetricSign(ctx context.Context, req *kmspb.AsymmetricSignRequest) (*kmspb.AsymmetricSignResponse, error) {
 	if req.DataCrc32C == nil {
 		return nil, fmt.Errorf("no data crc32c")
@@ -471,8 +481,9 @@ func (s *FakeKmsServer) AsymmetricSign(ctx context.Context, req *kmspb.Asymmetri
 	}, nil
 }
 
+// DestroyCryptoKeyVersion marks the named crypto key version for destruction.
 // We don't care if the key doesn't exist. Don't error.
-func (s *FakeKmsServer) DestroyCryptoKeyVersion(ctx context.Context, req *kmspb.DestroyCryptoKeyVersionRequest) (key *kmspb.CryptoKeyVersion, err error) {
+func (s *FakeKmsServer) DestroyCryptoKeyVersion(_ context.Context, req *kmspb.DestroyCryptoKeyVersionRequest) (key *kmspb.CryptoKeyVersion, err error) {
 	if s.createdCryptoKeyVersions != nil {
 		delete(s.createdCryptoKeyVersions, req.Name)
 	}

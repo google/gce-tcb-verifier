@@ -17,9 +17,9 @@
 package output
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"os"
 
@@ -32,7 +32,6 @@ var (
 	ErrNoContext = errors.New("no output context found")
 
 	stdoutTty      *typeWriter
-	stderrTty      *typeWriter
 	alwaysErrorTty *typeWriter
 	discardTty     *typeWriter
 )
@@ -113,7 +112,6 @@ func isTty(w statWriter) bool {
 
 func init() {
 	stdoutTty = &typeWriter{w: os.Stdout, istty: isTty(os.Stdout)}
-	stderrTty = &typeWriter{w: os.Stderr, istty: isTty(os.Stderr)}
 	alwaysErrorTty = &typeWriter{w: &alwaysError{}, istty: false}
 	discardTty = &typeWriter{w: &discard{}, istty: false}
 }

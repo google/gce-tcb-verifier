@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"encoding/pem"
 	"fmt"
-	"golang.org/x/net/context"
+	"context"
 
 	"google.golang.org/protobuf/proto"
 

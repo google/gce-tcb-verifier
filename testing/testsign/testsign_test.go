@@ -15,11 +15,11 @@
 package testsign
 
 import (
+	"context"
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
 	"fmt"
-	"golang.org/x/net/context"
 	"sync"
 	"testing"
 	"time"
@@ -105,7 +105,7 @@ func TestCertPoorErrors(t *testing.T) {
 	m := &MockSigner{
 		Certificates: map[string][]byte{},
 		CABundles: map[string][]byte{
-			signVersionName: []byte{},
+			signVersionName: {},
 			"badPEM": []byte(`
 -----BEGIN BAD-----
 YmFkCg==
@@ -162,7 +162,7 @@ extra`),
 func TestCertificateErrors(t *testing.T) {
 	m := &MockSigner{
 		Certificates: map[string][]byte{
-			signVersionName: []byte{},
+			signVersionName: {},
 		},
 		CABundles: map[string][]byte{},
 	}

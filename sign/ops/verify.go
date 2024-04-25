@@ -15,13 +15,13 @@
 package ops
 
 import (
+	"context"
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"time"
 
 	styp "github.com/google/gce-tcb-verifier/sign/types"
@@ -79,7 +79,7 @@ func checkSigningKeyCertificate(signingKeyCert *x509.Certificate) (*rsa.PublicKe
 }
 
 // VerifySignature returns whether the given signingKeyCert verifies a message's signature.
-func VerifySignature(ctx context.Context, signingKeyCert *x509.Certificate, message, signature []byte) error {
+func VerifySignature(_ context.Context, signingKeyCert *x509.Certificate, message, signature []byte) error {
 	pub, err := checkSigningKeyCertificate(signingKeyCert)
 	if err != nil {
 		return err

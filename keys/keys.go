@@ -16,9 +16,9 @@
 package keys
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
-	"golang.org/x/net/context"
 	"io"
 
 	styp "github.com/google/gce-tcb-verifier/sign/types"

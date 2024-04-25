@@ -15,6 +15,7 @@
 package verify
 
 import (
+	"context"
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -22,7 +23,6 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
-	"golang.org/x/net/context"
 	"math/rand" // insecure rand for test only.
 	"sync"
 	"testing"
@@ -32,7 +32,6 @@ import (
 	"github.com/google/gce-tcb-verifier/keys"
 	oabi "github.com/google/gce-tcb-verifier/ovmf/abi"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
-	rpb "github.com/google/gce-tcb-verifier/proto/releases"
 	"github.com/google/gce-tcb-verifier/sev"
 	"github.com/google/gce-tcb-verifier/sign/memca"
 	"github.com/google/gce-tcb-verifier/sign/nonprod"
@@ -59,16 +58,6 @@ var (
 	now            time.Time
 	rot            *x509.CertPool
 )
-
-var wrote = make(map[string][]byte)
-
-type endorseArgs struct {
-	signatureDir string
-	uefiDir      string
-	firmwares    []string
-	uefis        [][]byte
-	expectedMap  *rpb.VMEndorsementMap
-}
 
 const (
 	_KB = 1024
@@ -280,9 +269,7 @@ func TestSNPValidateFunc(t *testing.T) {
 				Kind: validate.CertEntryRequire,
 				Validate: SNPValidateFunc(&Options{SNP: &SNPOptions{}, Getter: &stest.Getter{
 					Responses: map[string][]stest.GetResponse{
-						"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/2247cc90eae3eff72c8d4b4ea5fefb8914bd80ad093859d5d022332eba7c7abe59e13d525c941ede5541191d7149585d.binarypb": []stest.GetResponse{
-							{Error: fmt.Errorf("nope to that")},
-						},
+						"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/2247cc90eae3eff72c8d4b4ea5fefb8914bd80ad093859d5d022332eba7c7abe59e13d525c941ede5541191d7149585d.binarypb": {{Error: fmt.Errorf("nope to that")}},
 					},
 				}}),
 			},
@@ -297,9 +284,7 @@ func TestSNPValidateFunc(t *testing.T) {
 					RootsOfTrust: rot,
 					Getter: &stest.Getter{
 						Responses: map[string][]stest.GetResponse{
-							"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/2247cc90eae3eff72c8d4b4ea5fefb8914bd80ad093859d5d022332eba7c7abe59e13d525c941ede5541191d7149585d.binarypb": []stest.GetResponse{
-								{Body: verifytest.FakeEndorsement(t)},
-							},
+							"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/2247cc90eae3eff72c8d4b4ea5fefb8914bd80ad093859d5d022332eba7c7abe59e13d525c941ede5541191d7149585d.binarypb": {{Body: verifytest.FakeEndorsement(t)}},
 						},
 					}}),
 			},

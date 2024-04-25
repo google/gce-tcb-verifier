@@ -19,9 +19,9 @@
 package localca
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"os"
 	"path"
 

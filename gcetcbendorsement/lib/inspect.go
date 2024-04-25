@@ -18,7 +18,7 @@ package gcetcbendorsement
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
+	"context"
 	"os"
 	"time"
 

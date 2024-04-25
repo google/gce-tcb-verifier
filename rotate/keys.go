@@ -15,10 +15,10 @@
 package rotate
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"math/big"
 	"time"
 

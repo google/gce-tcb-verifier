@@ -17,8 +17,8 @@
 package nonprod
 
 import (
+	"context"
 	"crypto/rand"
-	"golang.org/x/net/context"
 
 	"github.com/google/gce-tcb-verifier/cmd"
 	"github.com/google/gce-tcb-verifier/endorse"

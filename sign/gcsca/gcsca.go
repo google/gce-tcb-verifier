@@ -16,11 +16,11 @@
 package gcsca
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"strings"
 
