@@ -18,10 +18,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"golang.org/x/net/context"
 	"hash/crc32"
 	"net"
 	"testing"
+
+	"golang.org/x/net/context"
 
 	styp "github.com/google/gce-tcb-verifier/sign/types"
 
@@ -225,9 +226,9 @@ func InitGrpcKmsTestServers(t testing.TB, m kmspb.KeyManagementServiceServer, i 
 	}
 	go serv.Serve(lis)
 
-	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		t.Fatalf("could not dial test KMS server: %v", err)
+		t.Fatalf("could not create new client for test KMS server: %v", err)
 	}
 	return option.WithGRPCConn(conn)
 }
