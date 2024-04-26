@@ -28,15 +28,15 @@ const (
 )
 
 var (
-	eventFactories = map[string]func() UnmarshallableFromBytes{
-		hex.EncodeToString(TcgSP800155Event3Signature[:]): func() UnmarshallableFromBytes { return &SP800155Event3{} },
+	eventFactories = map[string]func() SerializableFromBytes{
+		hex.EncodeToString(TcgSP800155Event3Signature[:]): func() SerializableFromBytes { return &SP800155Event3{} },
 	}
 )
 
 // TCGEventData represents data that may be in an event log's EventData payload. Expects the input
 // data to have a 16 byte header specifying the event type.
 type TCGEventData struct {
-	Event UnmarshallableFromBytes
+	Event SerializableFromBytes
 }
 
 // UnknownEvent is a catch-all for EventData with unknown signature.
@@ -50,14 +50,21 @@ func (e *UnknownEvent) UnmarshalFromBytes(data []byte) error {
 	return nil
 }
 
-// UnmarshallableFromBytes is an interface for populating the object by interpreting all given
-// bytes as representing the object.
-type UnmarshallableFromBytes interface {
-	// UnmarshalFromBytes populates the current object from the totality of the given data or errors.
-	UnmarshalFromBytes(data []byte) error
+// MarshalToBytes returns the stored data.
+func (e *UnknownEvent) MarshalToBytes() ([]byte, error) {
+	return e.Data, nil
 }
 
-// Unmarshal reads a Uint32SizedUnmarshallable from the given reader.
+// SerializableFromBytes is an interface for populating the object by interpreting all given
+// bytes as representing the object, and writing the object as a string of bytes.
+type SerializableFromBytes interface {
+	// UnmarshalFromBytes populates the current object from the totality of the given data or errors.
+	UnmarshalFromBytes(data []byte) error
+	// MarshalToBytes writes the object to a byte array, including its 16 byte signature.
+	MarshalToBytes() ([]byte, error)
+}
+
+// Unmarshal reads a Uint32 sized, UnmarshallableToBytes from the given reader.
 func (d *TCGEventData) Unmarshal(r io.Reader) error {
 	size := uint32(0)
 	if err := binary.Read(r, binary.LittleEndian, &size); err != nil {
@@ -83,9 +90,25 @@ func (d *TCGEventData) Unmarshal(r io.Reader) error {
 	return nil
 }
 
-// Create creates a TCGEventData.
-func (*TCGEventData) Create() Unmarshallable {
-	return &TCGEventData{}
+// Marshal write a TCGEventData to the given writer.
+func (d *TCGEventData) Marshal(w io.Writer) error {
+	if d.Event == nil {
+		if err := binary.Write(w, binary.LittleEndian, uint32(0)); err != nil {
+			return fmt.Errorf("could not write empty event size 0 as uint32: %v", err)
+		}
+		return nil
+	}
+	dat, err := d.Event.MarshalToBytes()
+	if err != nil {
+		return fmt.Errorf("could not marshal event: %v", err)
+	}
+	if err := binary.Write(w, binary.LittleEndian, uint32(len(dat))); err != nil {
+		return fmt.Errorf("could not write event size as uint32: %v", err)
+	}
+	if n, err := w.Write(dat); err != nil || n != len(dat) {
+		return fmt.Errorf("could not marshal event (wrote %d bytes): %v", n, err)
+	}
+	return nil
 }
 
 // TCGPCClientPCREvent represents a TCG_PCClientPCREvent structure as specified in the PC Client
@@ -114,9 +137,21 @@ func (e *TCGPCClientPCREvent) Unmarshal(r io.Reader) error {
 	return nil
 }
 
-// Create creates a TCGPCClientPCREvent.
-func (*TCGPCClientPCREvent) Create() Unmarshallable {
-	return &TCGPCClientPCREvent{}
+// Marshal writes a TCGPCClientPCREvent to the given writer.
+func (e *TCGPCClientPCREvent) Marshal(w io.Writer) error {
+	if err := littleWrite(w, "PCRIndex", e.PCRIndex); err != nil {
+		return err
+	}
+	if err := littleWrite(w, "EventType", e.EventType); err != nil {
+		return err
+	}
+	if i, err := w.Write(e.SHA1Digest[:]); err != nil || i != 20 {
+		return fmt.Errorf("failed to write SHA1Digest (wrote %d bytes): %w", i, err)
+	}
+	if err := littleWrite(w, "EventData", &e.EventData); err != nil {
+		return err
+	}
+	return nil
 }
 
 // TCGPCREvent2 represents a TCG_PCR_EVENT2 structure as specified in the PC Client Platform
@@ -145,8 +180,25 @@ func (e *TCGPCREvent2) Unmarshal(r io.Reader) error {
 	return nil
 }
 
+// Marshal writes a TCGPCREvent2 to the given writer.
+func (e *TCGPCREvent2) Marshal(w io.Writer) error {
+	if err := littleWrite(w, "PCRIndex", e.PCRIndex); err != nil {
+		return err
+	}
+	if err := littleWrite(w, "EventType", e.EventType); err != nil {
+		return err
+	}
+	if err := littleWrite(w, "Digests", &e.Digests); err != nil {
+		return err
+	}
+	if err := littleWrite(w, "EventData", &e.EventData); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Create creates a TCGPCREvent2.
-func (*TCGPCREvent2) Create() Unmarshallable {
+func (*TCGPCREvent2) Create() Serializable {
 	return &TCGPCREvent2{}
 }
 
@@ -171,4 +223,17 @@ func (cel *CryptoAgileLog) Unmarshal(r io.Reader) error {
 		}
 		cel.Events = append(cel.Events, evt)
 	}
+}
+
+// Marshal writes a CryptoAgileLog to the given writer
+func (cel *CryptoAgileLog) Marshal(w io.Writer) error {
+	if err := littleWrite(w, "Header", &cel.Header); err != nil {
+		return err
+	}
+	for i, evt := range cel.Events {
+		if err := littleWrite(w, "Event", evt); err != nil {
+			return fmt.Errorf("could not write event %d: %v", i, err)
+		}
+	}
+	return nil
 }
