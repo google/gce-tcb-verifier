@@ -15,9 +15,9 @@
 package nonprod
 
 import (
+	"context"
 	"crypto/sha512"
 	"fmt"
-	"golang.org/x/net/context"
 	"math/big"
 	"os"
 	"path"
@@ -79,28 +79,6 @@ func mkFirmware(t testing.TB, dir string) string {
 
 type wants interface {
 	check(ctx context.Context, ec *endorse.Context, cops endorse.ChangeOps) error
-}
-
-type wantSame struct {
-	left  string
-	right string
-}
-
-func (w *wantSame) check(ctx context.Context, ec *endorse.Context, cops endorse.ChangeOps) error {
-	lpath := ec.VCS.ReleasePath(ctx, w.left)
-	rpath := ec.VCS.ReleasePath(ctx, w.right)
-	left, err := cops.ReadFile(ctx, lpath)
-	if err != nil {
-		return err
-	}
-	right, err := cops.ReadFile(ctx, rpath)
-	if err != nil {
-		return err
-	}
-	if diff := cmp.Diff(left, right); diff != "" {
-		return fmt.Errorf("contents for %q %q unexpected (-got, +want): %s", lpath, rpath, diff)
-	}
-	return nil
 }
 
 type wantEndorsement struct {
@@ -296,7 +274,7 @@ func TestEndorseLocalKeysMemcaWithExistingBranch(t *testing.T) {
 		{
 			name: "manifest exists but irrelevant",
 			initialFiles: []*endorse.File{
-				&endorse.File{
+				{
 					Path: "manifest.textproto",
 					Contents: []byte(`
 					# proto-file: github.com/google/gce-tcb-verifier/proto/releases.proto
@@ -324,12 +302,12 @@ func TestEndorseLocalKeysMemcaWithExistingBranch(t *testing.T) {
 					Path: "manifest.textproto",
 					Contents: marshalManifest(&rpb.VMEndorsementMap{
 						Entries: []*rpb.VMEndorsementMap_Entry{
-							&rpb.VMEndorsementMap_Entry{
+							{
 								Digest:     []byte(`not the firmware digest`),
 								Path:       "irrelevant1.binarypb",
 								CreateTime: &timestamppb.Timestamp{},
 							},
-							&rpb.VMEndorsementMap_Entry{
+							{
 								Digest:     fwDigest[:],
 								Path:       "irrelevant2.binarypb",
 								CreateTime: &timestamppb.Timestamp{},
@@ -341,12 +319,12 @@ func TestEndorseLocalKeysMemcaWithExistingBranch(t *testing.T) {
 			wants: []wants{legacyWant, &wantManifest{
 				wantManifest: &rpb.VMEndorsementMap{
 					Entries: []*rpb.VMEndorsementMap_Entry{
-						&rpb.VMEndorsementMap_Entry{
+						{
 							Digest:     []byte(`not the firmware digest`),
 							Path:       "irrelevant1.binarypb",
 							CreateTime: &timestamppb.Timestamp{},
 						},
-						&rpb.VMEndorsementMap_Entry{
+						{
 							Digest:     fwDigest[:],
 							Path:       "2023-09-26-T20-00-viperlite-npi-2-RC00.binarypb",
 							CreateTime: &timestamppb.Timestamp{Seconds: 1699632780, Nanos: 0},
@@ -362,7 +340,7 @@ func TestEndorseLocalKeysMemcaWithExistingBranch(t *testing.T) {
 					Path: "manifest.textproto",
 					Contents: marshalManifest(&rpb.VMEndorsementMap{
 						Entries: []*rpb.VMEndorsementMap_Entry{
-							&rpb.VMEndorsementMap_Entry{
+							{
 								Digest:     []byte(`not the firmware digest`),
 								Path:       "2023-09-26-T20-00-viperlite-npi-2-RC00.binarypb",
 								CreateTime: &timestamppb.Timestamp{},
@@ -378,7 +356,7 @@ func TestEndorseLocalKeysMemcaWithExistingBranch(t *testing.T) {
 			wants: []wants{legacyWant, &wantManifest{
 				wantManifest: &rpb.VMEndorsementMap{
 					Entries: []*rpb.VMEndorsementMap_Entry{
-						&rpb.VMEndorsementMap_Entry{
+						{
 							Digest:     fwDigest[:],
 							Path:       "2023-09-26-T20-00-viperlite-npi-2-RC00.binarypb",
 							CreateTime: &timestamppb.Timestamp{Seconds: 1699632780, Nanos: 0},
@@ -394,7 +372,7 @@ func TestEndorseLocalKeysMemcaWithExistingBranch(t *testing.T) {
 					Path: "manifest.textproto",
 					Contents: marshalManifest(&rpb.VMEndorsementMap{
 						Entries: []*rpb.VMEndorsementMap_Entry{
-							&rpb.VMEndorsementMap_Entry{
+							{
 								Digest:     fwDigest[:],
 								Path:       "2023-09-26-T20-00-viperlite-npi-2-RC00.binarypb",
 								CreateTime: &timestamppb.Timestamp{Seconds: 1, Nanos: 100},
@@ -409,7 +387,7 @@ func TestEndorseLocalKeysMemcaWithExistingBranch(t *testing.T) {
 			},
 			wants: []wants{legacyWant, &wantManifest{wantManifest: &rpb.VMEndorsementMap{
 				Entries: []*rpb.VMEndorsementMap_Entry{
-					&rpb.VMEndorsementMap_Entry{
+					{
 						Digest:     fwDigest[:],
 						Path:       "2023-09-26-T20-00-viperlite-npi-2-RC00.binarypb",
 						CreateTime: &timestamppb.Timestamp{Seconds: 1699632780, Nanos: 0},

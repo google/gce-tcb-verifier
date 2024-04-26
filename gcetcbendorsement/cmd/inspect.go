@@ -17,7 +17,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/google/gce-tcb-verifier/gcetcbendorsement/lib/gcetcbendorsement"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"

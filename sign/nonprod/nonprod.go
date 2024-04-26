@@ -21,6 +21,7 @@
 package nonprod
 
 import (
+	"context"
 	"crypto"
 	"crypto/rsa" // only used for testing and illustration.
 	"crypto/x509"
@@ -28,7 +29,6 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"math/big"
 	"time"
@@ -235,7 +235,7 @@ func MakeCustomSigner(ctx context.Context, opts *Options) (*Signer, error) {
 
 // Sign uses the given key to sign the given digest. toSign must be the result of hashing the input
 // message with SHA384.
-func (s *Signer) Sign(ctx context.Context, keyVersionName string, digest styp.Digest, opts crypto.SignerOpts) ([]byte, error) {
+func (s *Signer) Sign(_ context.Context, keyVersionName string, digest styp.Digest, opts crypto.SignerOpts) ([]byte, error) {
 	var key *rsa.PrivateKey
 	var ok bool
 	key, ok = s.getKey(keyVersionName)
@@ -263,7 +263,7 @@ func RsaPublicKeyToPEM(pub *rsa.PublicKey) []byte {
 }
 
 // PublicKey returns the PEM-encoded public key of the given keyVersionName.
-func (s *Signer) PublicKey(ctx context.Context, keyVersionName string) ([]byte, error) {
+func (s *Signer) PublicKey(_ context.Context, keyVersionName string) ([]byte, error) {
 	key, ok := s.getKey(keyVersionName)
 	if !ok {
 		return nil, fmt.Errorf("invalid key: %s", keyVersionName)

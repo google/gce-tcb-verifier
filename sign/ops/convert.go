@@ -15,10 +15,10 @@
 package ops
 
 import (
+	"context"
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
-	"golang.org/x/net/context"
 
 	"github.com/google/gce-tcb-verifier/sign/transform"
 	styp "github.com/google/gce-tcb-verifier/sign/types"

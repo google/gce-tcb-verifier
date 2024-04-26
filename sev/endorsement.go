@@ -29,8 +29,6 @@ const (
 	// GCEFwCertGUID is the UUID that GCE uses to provide the serialized launch endorsement to a
 	// SEV-SNP guest in the certificate table.
 	GCEFwCertGUID = "9f4116cd-c503-4f5a-8f6f-fb68882f4ce2"
-	// As specified in the SEV-SNP API reference.
-	idBlockVersion = 1
 )
 
 // SnpEndorsementRequest encapsulates all AMD-specific information needed to endorse a UEFI binary

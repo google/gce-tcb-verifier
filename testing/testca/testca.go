@@ -17,9 +17,9 @@ package testca
 
 import (
 	"bytes"
+	"context"
 	"crypto/x509"
 	"encoding/pem"
-	"golang.org/x/net/context"
 	"testing"
 
 	"github.com/google/gce-tcb-verifier/sign/transform"

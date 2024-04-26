@@ -16,10 +16,10 @@
 package localkm
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"golang.org/x/net/context"
 	"os"
 	"path"
 	"strings"
@@ -75,7 +75,7 @@ func loadKey(signer *nonprod.Signer, keyVersionName, path string) error {
 	return nil
 }
 
-func (k *T) foreachKey(ctx context.Context, f func(ctx context.Context, keyVersionName string) error) error {
+func (k *T) foreachKey(ctx context.Context, f func(context.Context, string) error) error {
 	entries, err := os.ReadDir(k.KeyDir)
 	if err != nil {
 		return err
@@ -109,14 +109,14 @@ func (k *T) keyPath(keyVersionName string) string {
 
 // Init initializes a local key manager given its KeyDir, signature randomness and signer
 // randomness with all the keys in KeyDir.
-func (k *T) Init(ctx context.Context) error {
+func (k *T) Init(context.Context) error {
 	if k.FileToKvn != nil {
 		k.kvnToFile = make(map[string]string)
 		for file, kvn := range k.FileToKvn {
 			k.kvnToFile[kvn] = file
 		}
 	}
-	return k.foreachKey(context.Background(), func(ctx context.Context, keyVersionName string) error {
+	return k.foreachKey(context.Background(), func(_ context.Context, keyVersionName string) error {
 		return loadKey(k.Signer, keyVersionName, k.keyPath(keyVersionName))
 	})
 }
@@ -217,7 +217,7 @@ func (k *T) AddFlags(cmd *cobra.Command) {
 }
 
 // PersistentPreRunE returns an error if the results of the parsed flags constitute an error.
-func (k *T) PersistentPreRunE(cmd *cobra.Command, args []string) error {
+func (k *T) PersistentPreRunE(*cobra.Command, []string) error {
 	info, err := os.Stat(k.KeyDir)
 	if err != nil {
 		return fmt.Errorf("failed to stat %q: %w", k.KeyDir, err)

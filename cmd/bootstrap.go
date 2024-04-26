@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	"golang.org/x/net/context"
+	"context"
 	"time"
 
 	"github.com/google/gce-tcb-verifier/rotate"
@@ -46,7 +46,7 @@ func (b *BootstrapCommand) AddFlags(cmd *cobra.Command) {
 }
 
 // PersistentPreRunE returns an error if the results of the parsed flags constitute an error.
-func (b *BootstrapCommand) PersistentPreRunE(cmd *cobra.Command, args []string) error {
+func (b *BootstrapCommand) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	bc, err := rotate.FromBootstrapContext(cmd.Context())
 	if err != nil {
 		return err

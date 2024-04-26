@@ -16,8 +16,8 @@
 package ops
 
 import (
+	"context"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 
 	"github.com/google/gce-tcb-verifier/storage/storagei"
@@ -31,7 +31,7 @@ func WriteFile(ctx context.Context, s storagei.Client, bucket, name string, cont
 		return err
 	}
 	// The file needs its contents.
-	close := func() error {
+	closer := func() error {
 		if err := w.Close(); err != nil {
 			return fmt.Errorf("could not close file %q: %w", name, err)
 		}
@@ -39,12 +39,12 @@ func WriteFile(ctx context.Context, s storagei.Client, bucket, name string, cont
 	}
 	n, err := w.Write(contents)
 	if n != len(contents) || err != nil {
-		if err := close(); err != nil {
+		if err := closer(); err != nil {
 			return err
 		}
 		return fmt.Errorf("could not write file %q: %w", name, err)
 	}
-	return close()
+	return closer()
 }
 
 // ReadFile returns the file's contents or an empty array if the file doesn't exist.

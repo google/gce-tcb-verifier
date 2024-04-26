@@ -15,9 +15,9 @@
 package testsign
 
 import (
+	"context"
 	"crypto/x509/pkix"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"math/rand" // Unsafe randomness source only for testing.
 	"testing"
@@ -78,7 +78,7 @@ type Options struct {
 }
 
 // MakeSigner creates a new Signer with signer keys of the given names.
-func MakeSigner(ctx context.Context, opts *Options) (*nonprod.Signer, error) {
+func MakeSigner(_ context.Context, opts *Options) (*nonprod.Signer, error) {
 	randomSource := rand.NewSource(12345)
 	random := rand.New(randomSource)
 	serialNumber := int64(1)

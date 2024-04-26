@@ -17,8 +17,8 @@
 package localnonvcs
 
 import (
+	"context"
 	"fmt"
-	"golang.org/x/net/context"
 	"os"
 	"path"
 
@@ -37,7 +37,7 @@ type changeOps struct{}
 
 // WriteOrCreateFiles creates or overwrites all given files with their paired contents, or returns
 // an error.
-func (*changeOps) WriteOrCreateFiles(ctx context.Context, files ...*endorse.File) error {
+func (*changeOps) WriteOrCreateFiles(_ context.Context, files ...*endorse.File) error {
 	for _, f := range files {
 		parent := path.Dir(f.Path)
 		if err := os.MkdirAll(parent, 0755); err != nil {
@@ -51,13 +51,13 @@ func (*changeOps) WriteOrCreateFiles(ctx context.Context, files ...*endorse.File
 }
 
 // ReadFile returns the content of the given file, or an error.
-func (*changeOps) ReadFile(ctx context.Context, path string) ([]byte, error) {
+func (*changeOps) ReadFile(_ context.Context, path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
 
 // SetBinaryWritable sets the metadata of the given file to denote it as binary and writable, and
 // returns nil on success.
-func (*changeOps) SetBinaryWritable(ctx context.Context, path string) error {
+func (*changeOps) SetBinaryWritable(_ context.Context, path string) error {
 	return os.Chmod(path, 0755)
 }
 
@@ -71,24 +71,24 @@ func (*changeOps) IsNotFound(err error) bool {
 func (*changeOps) Destroy() {}
 
 // TryCommit returns a representation of the successful commit or an error.
-func (*changeOps) TryCommit(ctx context.Context) (any, error) {
+func (*changeOps) TryCommit(context.Context) (any, error) {
 	return nil, nil
 }
 
 // GetChangeOps returns a filesystem abstraction within the context of a commit attempt.
-func (*T) GetChangeOps(ctx context.Context) (endorse.ChangeOps, error) {
+func (*T) GetChangeOps(context.Context) (endorse.ChangeOps, error) {
 	return &changeOps{}, nil
 }
 
 // RetriableError returns true if TryCommit's provided error is retriable.
-func (*T) RetriableError(err error) bool { return false }
+func (*T) RetriableError(error) bool { return false }
 
 // Result returns a successful commit's representation given a successful TryCommit's result and
 // the path to the created endorsement.
-func (*T) Result(commit any, endorsementPath string) any { return nil }
+func (*T) Result(any, string) any { return nil }
 
 // ReleasePath translates a path to its expected full path for WriteOrCreateFiles/ReadFile.
-func (t *T) ReleasePath(ctx context.Context, certPath string) string {
+func (t *T) ReleasePath(_ context.Context, certPath string) string {
 	return path.Join(t.Root, certPath)
 }
 
@@ -111,7 +111,7 @@ func (t *T) AddFlags(c *cobra.Command) {
 }
 
 // PersistentPreRunE returns an error if the results of the parsed flags constitute an error.
-func (t *T) PersistentPreRunE(cmd *cobra.Command, args []string) error {
+func (t *T) PersistentPreRunE(*cobra.Command, []string) error {
 	if t.Root == "" {
 		return nil
 	}

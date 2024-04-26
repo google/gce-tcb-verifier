@@ -15,11 +15,11 @@
 package cmd
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"math/big"
 	"os"
@@ -56,7 +56,7 @@ func TestRootFlags(t *testing.T) {
 			name: "key validation",
 			args: []string{},
 			app: &AppComponents{Global: &PartialComponent{
-				FPersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+				FPersistentPreRunE: func(*cobra.Command, []string) error {
 					return errors.New("forced error")
 				},
 			}},
@@ -70,7 +70,7 @@ func TestRootFlags(t *testing.T) {
 			}
 			cmd := makeRootCmd(context.Background(), tc.app)
 			// Avoid the usage error by defining a Run function.
-			cmd.RunE = func(c *cobra.Command, args []string) error { return nil }
+			cmd.RunE = func(*cobra.Command, []string) error { return nil }
 			cmd.SetArgs(tc.args)
 			if err := cmd.Execute(); !match.Error(err, tc.wantErr) {
 				t.Fatal(err)
@@ -130,7 +130,7 @@ func TestBigIntFlag(t *testing.T) {
 				}
 			}()
 			c := &cobra.Command{
-				RunE: func(c *cobra.Command, args []string) error {
+				RunE: func(*cobra.Command, []string) error {
 					if tc.want == nil {
 						return nil
 					}
@@ -185,7 +185,7 @@ func TestTimeFlag(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			c := &cobra.Command{
-				RunE: func(c *cobra.Command, args []string) error {
+				RunE: func(*cobra.Command, []string) error {
 					if !v.Equal(tc.want) {
 						return fmt.Errorf("timeFlag = %v, want %v (wantErr %q)", *f.t, tc.want, tc.wantErr)
 					}

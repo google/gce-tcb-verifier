@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	"golang.org/x/net/context"
+	"context"
 	"math/big"
 	"time"
 
@@ -42,7 +42,7 @@ func (r *RotateCommand) AddFlags(cmd *cobra.Command) {
 }
 
 // PersistentPreRunE returns an error if the results of the parsed flags constitute an error.
-func (r *RotateCommand) PersistentPreRunE(cmd *cobra.Command, args []string) error {
+func (r *RotateCommand) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	skc, err := rotate.FromSigningKeyContext(cmd.Context())
 	if err != nil {
 		return err

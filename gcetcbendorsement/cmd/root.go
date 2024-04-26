@@ -17,7 +17,7 @@ package cmd
 
 import (
 	"errors"
-	"golang.org/x/net/context"
+	"context"
 	"time"
 
 	"github.com/google/gce-tcb-verifier/extract"

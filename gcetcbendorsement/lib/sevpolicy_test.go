@@ -15,7 +15,7 @@
 package gcetcbendorsement
 
 import (
-	"golang.org/x/net/context"
+	"context"
 	"testing"
 
 	testlib "github.com/google/gce-tcb-verifier/gcetcbendorsement/testing"

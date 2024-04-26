@@ -22,7 +22,7 @@ import (
 	"net"
 	"testing"
 
-	"golang.org/x/net/context"
+	"context"
 
 	styp "github.com/google/gce-tcb-verifier/sign/types"
 
@@ -89,7 +89,8 @@ func (s *KeyManagementServer) Clear() {
 	s.CreateCryptoKeyErr = nil
 }
 
-func (s *KeyManagementServer) ListCryptoKeys(ctx context.Context, req *kmspb.ListCryptoKeysRequest) (*kmspb.ListCryptoKeysResponse, error) {
+// ListCryptoKeys returns the crypto keys under a key ring.
+func (s *KeyManagementServer) ListCryptoKeys(context.Context, *kmspb.ListCryptoKeysRequest) (*kmspb.ListCryptoKeysResponse, error) {
 	for _, r := range s.Resps {
 		resp, ok := r.(*kmspb.ListCryptoKeysResponse)
 		if ok {
@@ -99,7 +100,8 @@ func (s *KeyManagementServer) ListCryptoKeys(ctx context.Context, req *kmspb.Lis
 	return nil, fmt.Errorf("no ListCryptoKeysResponse")
 }
 
-func (s *KeyManagementServer) ListCryptoKeyVersions(ctx context.Context, req *kmspb.ListCryptoKeyVersionsRequest) (*kmspb.ListCryptoKeyVersionsResponse, error) {
+// ListCryptoKeyVersions returns the crypto key versions under a crypto key.
+func (s *KeyManagementServer) ListCryptoKeyVersions(_ context.Context, req *kmspb.ListCryptoKeyVersionsRequest) (*kmspb.ListCryptoKeyVersionsResponse, error) {
 	if len(s.ListCryptoKeyVersionsResp) > 0 {
 		resp, ok := s.ListCryptoKeyVersionsResp[req.GetParent()]
 		if ok {
@@ -109,7 +111,8 @@ func (s *KeyManagementServer) ListCryptoKeyVersions(ctx context.Context, req *km
 	return nil, fmt.Errorf("no ListCryptoKeyVersionsResponse for %q", req.GetParent())
 }
 
-func (s *KeyManagementServer) GetKeyRing(ctx context.Context, req *kmspb.GetKeyRingRequest) (*kmspb.KeyRing, error) {
+// GetKeyRing returns the first KeyRing response in the mock's list of responses.
+func (s *KeyManagementServer) GetKeyRing(context.Context, *kmspb.GetKeyRingRequest) (*kmspb.KeyRing, error) {
 	for _, resp := range s.Resps {
 		kr, ok := resp.(*kmspb.KeyRing)
 		if ok {
@@ -119,7 +122,8 @@ func (s *KeyManagementServer) GetKeyRing(ctx context.Context, req *kmspb.GetKeyR
 	return nil, fmt.Errorf("keyring not found")
 }
 
-func (s *KeyManagementServer) GetCryptoKey(ctx context.Context, req *kmspb.GetCryptoKeyRequest) (key *kmspb.CryptoKey, err error) {
+// GetCryptoKey returns a CryptoKey object from its resource name.
+func (s *KeyManagementServer) GetCryptoKey(_ context.Context, req *kmspb.GetCryptoKeyRequest) (key *kmspb.CryptoKey, err error) {
 	var ok bool
 	if len(s.GetCryptoKeyResp) > 0 {
 		key, ok = s.GetCryptoKeyResp[req.Name]
@@ -133,7 +137,8 @@ func (s *KeyManagementServer) GetCryptoKey(ctx context.Context, req *kmspb.GetCr
 	return key, nil
 }
 
-func (s *KeyManagementServer) GetCryptoKeyVersion(ctx context.Context, req *kmspb.GetCryptoKeyVersionRequest) (key *kmspb.CryptoKeyVersion, err error) {
+// GetCryptoKeyVersion returns a CryptoKeyVersion object from its resource name.
+func (s *KeyManagementServer) GetCryptoKeyVersion(_ context.Context, req *kmspb.GetCryptoKeyVersionRequest) (key *kmspb.CryptoKeyVersion, err error) {
 	var ok bool
 	if len(s.GetCryptoKeyVersionResp) > 0 {
 		key, ok = s.GetCryptoKeyVersionResp[req.Name]
@@ -147,7 +152,8 @@ func (s *KeyManagementServer) GetCryptoKeyVersion(ctx context.Context, req *kmsp
 	return key, nil
 }
 
-func (s *KeyManagementServer) GetPublicKey(ctx context.Context, req *kmspb.GetPublicKeyRequest) (*kmspb.PublicKey, error) {
+// GetPublicKey returns the name key's public key.
+func (s *KeyManagementServer) GetPublicKey(_ context.Context, req *kmspb.GetPublicKeyRequest) (*kmspb.PublicKey, error) {
 	for _, r := range s.Resps {
 		resp, ok := r.(*kmspb.PublicKey)
 		if !ok || r == nil || req.Name != resp.Name {
@@ -158,7 +164,8 @@ func (s *KeyManagementServer) GetPublicKey(ctx context.Context, req *kmspb.GetPu
 	return nil, fmt.Errorf("public key: no key named %q", req.Name)
 }
 
-func (s *KeyManagementServer) CreateKeyRing(ctx context.Context, req *kmspb.CreateKeyRingRequest) (keyring *kmspb.KeyRing, err error) {
+// CreateKeyRing creates a new keyring and returns its object handle.
+func (s *KeyManagementServer) CreateKeyRing(context.Context, *kmspb.CreateKeyRingRequest) (keyring *kmspb.KeyRing, err error) {
 	for _, r := range s.Resps {
 		resp, ok := r.(*kmspb.KeyRing)
 		if ok {
@@ -169,7 +176,8 @@ func (s *KeyManagementServer) CreateKeyRing(ctx context.Context, req *kmspb.Crea
 	return keyring, s.CreateKeyRingErr
 }
 
-func (s *KeyManagementServer) CreateCryptoKey(ctx context.Context, req *kmspb.CreateCryptoKeyRequest) (key *kmspb.CryptoKey, err error) {
+// CreateCryptoKey creates a new crypto key and returns its object handle.
+func (s *KeyManagementServer) CreateCryptoKey(_ context.Context, req *kmspb.CreateCryptoKeyRequest) (key *kmspb.CryptoKey, err error) {
 	var ok bool
 	if len(s.CreateCryptoKeyResp) > 0 {
 		key, ok = s.CreateCryptoKeyResp[req.GetCryptoKeyId()]
@@ -184,7 +192,8 @@ func (s *KeyManagementServer) CreateCryptoKey(ctx context.Context, req *kmspb.Cr
 	return key, err
 }
 
-func (s *KeyManagementServer) CreateCryptoKeyVersion(ctx context.Context, req *kmspb.CreateCryptoKeyVersionRequest) (key *kmspb.CryptoKeyVersion, err error) {
+// CreateCryptoKeyVersion creates a new crypto key version and returns its object handle.
+func (s *KeyManagementServer) CreateCryptoKeyVersion(_ context.Context, req *kmspb.CreateCryptoKeyVersionRequest) (key *kmspb.CryptoKeyVersion, err error) {
 	var ok bool
 	if len(s.CreateCryptoKeyVersionResp) > 0 {
 		key, ok = s.CreateCryptoKeyVersionResp[req.GetParent()]
@@ -195,7 +204,8 @@ func (s *KeyManagementServer) CreateCryptoKeyVersion(ctx context.Context, req *k
 	return key, nil
 }
 
-func (s *KeyManagementServer) AsymmetricSign(ctx context.Context, req *kmspb.AsymmetricSignRequest) (*kmspb.AsymmetricSignResponse, error) {
+// AsymmetricSign uses an asymmetric key's private key to sign a given digest.
+func (s *KeyManagementServer) AsymmetricSign(_ context.Context, req *kmspb.AsymmetricSignRequest) (*kmspb.AsymmetricSignResponse, error) {
 	resp, ok := s.AsymmetricSignResp[hex.EncodeToString(req.Digest.GetSha256())]
 	if !ok {
 		return nil, fmt.Errorf("no signature entry for %v", req.Digest.GetSha256())
@@ -203,7 +213,8 @@ func (s *KeyManagementServer) AsymmetricSign(ctx context.Context, req *kmspb.Asy
 	return resp, nil
 }
 
-func (s *KeyManagementServer) DestroyCryptoKeyVersion(ctx context.Context, req *kmspb.DestroyCryptoKeyVersionRequest) (key *kmspb.CryptoKeyVersion, err error) {
+// DestroyCryptoKeyVersion marks a named crypto key version for destruction.
+func (s *KeyManagementServer) DestroyCryptoKeyVersion(_ context.Context, req *kmspb.DestroyCryptoKeyVersionRequest) (key *kmspb.CryptoKeyVersion, err error) {
 	var ok bool
 	if len(s.DestroyCryptoKeyVersionResp) > 0 {
 		key, ok = s.DestroyCryptoKeyVersionResp[req.Name]
@@ -238,7 +249,8 @@ type IAMPolicyServer struct {
 	iampb.IAMPolicyServer
 }
 
-func (*IAMPolicyServer) SetIamPolicy(ctx context.Context, in *iampb.SetIamPolicyRequest) (*iampb.Policy, error) {
+// SetIamPolicy returns the given policy.
+func (*IAMPolicyServer) SetIamPolicy(_ context.Context, in *iampb.SetIamPolicyRequest) (*iampb.Policy, error) {
 	return in.GetPolicy(), nil
 }
 

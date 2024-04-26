@@ -16,10 +16,10 @@
 package memca
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"golang.org/x/net/context"
 
 	"github.com/google/gce-tcb-verifier/keys"
 	"github.com/google/gce-tcb-verifier/sign/transform"
@@ -58,7 +58,7 @@ func (ca *CertificateAuthority) setCert(name string, cert *x509.Certificate) {
 }
 
 // Certificate returns the DER-encoded certificate of the given keyVersionName.
-func (ca *CertificateAuthority) Certificate(ctx context.Context, keyVersionName string) ([]byte, error) {
+func (ca *CertificateAuthority) Certificate(_ context.Context, keyVersionName string) ([]byte, error) {
 	keyCert, ok := ca.getCert(keyVersionName)
 	if !ok {
 		return nil, fmt.Errorf("invalid key: %s", keyVersionName)
@@ -68,7 +68,7 @@ func (ca *CertificateAuthority) Certificate(ctx context.Context, keyVersionName 
 
 // CABundle returns the PEM-encoded certificate chain for inner intermediates to root for the
 // CertificateAuthority key of the given keyName.
-func (ca *CertificateAuthority) CABundle(ctx context.Context, _ string) ([]byte, error) {
+func (ca *CertificateAuthority) CABundle(context.Context, string) ([]byte, error) {
 	rootCert, ok := ca.getCert(ca.RootName)
 	if !ok {
 		return nil, fmt.Errorf("root %q does not have a certificate", ca.RootName)
@@ -149,10 +149,10 @@ func (ca *CertificateAuthority) InitContext(ctx context.Context) (context.Contex
 }
 
 // AddFlags adds any implementation-specific flags for this command component.
-func (ca *CertificateAuthority) AddFlags(cmd *cobra.Command) {}
+func (ca *CertificateAuthority) AddFlags(*cobra.Command) {}
 
 // PersistentPreRunE returns an error if the results of the parsed flags constitute an error.
-func (ca *CertificateAuthority) PersistentPreRunE(cmd *cobra.Command, args []string) error {
+func (ca *CertificateAuthority) PersistentPreRunE(*cobra.Command, []string) error {
 	return nil
 }
 

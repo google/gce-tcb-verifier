@@ -15,11 +15,11 @@
 package ops
 
 import (
+	"context"
 	"crypto"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"math/big"
 	"time"

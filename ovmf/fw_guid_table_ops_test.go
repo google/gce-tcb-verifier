@@ -92,10 +92,10 @@ func (f FwGUIDTable) ToBytes() []byte {
 
 // FwImg structure used for testcases.
 type FwImg struct {
-	unusedArea  [0x100000]byte // Fake UEFI code
-	guidTable   FwGUIDTable
-	footer      abi.FwGUIDEntry
-	unusedArea2 [abi.FwGUIDTableEndOffset]byte
+	unusedArea [0x100000]byte // Fake UEFI code
+	guidTable  FwGUIDTable
+	footer     abi.FwGUIDEntry
+	_          [abi.FwGUIDTableEndOffset]byte
 }
 
 func (f *FwImg) PopulateGUIDTable() {

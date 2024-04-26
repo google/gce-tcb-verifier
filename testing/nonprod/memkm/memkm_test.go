@@ -15,8 +15,8 @@
 package memkm
 
 import (
+	"context"
 	"fmt"
-	"golang.org/x/net/context"
 	"testing"
 	"time"
 

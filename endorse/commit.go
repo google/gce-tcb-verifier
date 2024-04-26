@@ -15,11 +15,11 @@
 package endorse
 
 import (
+	"context"
 	"crypto/sha512"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"path"
 
 	"github.com/google/gce-tcb-verifier/cmd/output"
@@ -38,8 +38,6 @@ var (
 	// ErrNoEndorseContext is returned when the context.Context object does not contain the
 	// EndorseContext.
 	ErrNoEndorseContext = errors.New("no EndorseContext found")
-	// How many files to query when computing a cert counter suffix?
-	maxCounterAttempts = 100
 	// ManifestFile is the basename of the VMEndorsementMap signature manifest.
 	ManifestFile = "manifest.textproto"
 	// DefaultEndorsementBasename is used for the file basename (minus file extension) of the signed

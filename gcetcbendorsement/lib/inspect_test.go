@@ -16,7 +16,7 @@ package gcetcbendorsement
 
 import (
 	"bytes"
-	"golang.org/x/net/context"
+	"context"
 	"io"
 	"os"
 	"testing"

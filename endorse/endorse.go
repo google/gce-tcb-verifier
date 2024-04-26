@@ -16,6 +16,7 @@
 package endorse
 
 import (
+	"context"
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -23,7 +24,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"time"
 
 	"github.com/google/gce-tcb-verifier/keys"

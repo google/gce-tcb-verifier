@@ -15,8 +15,8 @@
 package types
 
 import (
+	"context"
 	"crypto"
-	"golang.org/x/net/context"
 )
 
 // Digest is the input type for signatures, since we only sign digests.

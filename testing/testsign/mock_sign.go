@@ -15,10 +15,10 @@
 package testsign
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
-	"golang.org/x/net/context"
 
 	cpb "github.com/google/gce-tcb-verifier/proto/certificates"
 	styp "github.com/google/gce-tcb-verifier/sign/types"
@@ -37,7 +37,8 @@ type MockSigner struct {
 	PrepareErr        error
 }
 
-func (m *MockSigner) Certificate(ctx context.Context, keyVersionName string) ([]byte, error) {
+// Certificate returns the certificate of the given keyVersionName.
+func (m *MockSigner) Certificate(_ context.Context, keyVersionName string) ([]byte, error) {
 	bytes, ok := m.Certificates[keyVersionName]
 	if !ok {
 		return nil, fmt.Errorf("missing certificate for key %q", keyVersionName)
@@ -45,7 +46,8 @@ func (m *MockSigner) Certificate(ctx context.Context, keyVersionName string) ([]
 	return bytes, nil
 }
 
-func (m *MockSigner) CABundle(ctx context.Context, keyName string) ([]byte, error) {
+// CABundle returns the CA chain of certificates for certifying the given key's certificate.
+func (m *MockSigner) CABundle(_ context.Context, keyName string) ([]byte, error) {
 	bytes, ok := m.CABundles[keyName]
 	if !ok {
 		return nil, fmt.Errorf("missing CA bundle for key %q", keyName)
@@ -53,7 +55,8 @@ func (m *MockSigner) CABundle(ctx context.Context, keyName string) ([]byte, erro
 	return bytes, nil
 }
 
-func (m *MockSigner) Sign(ctx context.Context, keyVersionName string, toSign []byte) ([]byte, error) {
+// Sign signs the given data with the named key version.
+func (m *MockSigner) Sign(_ context.Context, keyVersionName string, toSign []byte) ([]byte, error) {
 	signatureMap, ok := m.Signatures[keyVersionName]
 	if !ok {
 		return nil, fmt.Errorf("missing signature map for key %q", keyVersionName)
@@ -66,7 +69,7 @@ func (m *MockSigner) Sign(ctx context.Context, keyVersionName string, toSign []b
 }
 
 // PublicKey returns the PEM encoded public key for the named key.
-func (m *MockSigner) PublicKey(ctx context.Context, keyVersionName string) ([]byte, error) {
+func (m *MockSigner) PublicKey(_ context.Context, keyVersionName string) ([]byte, error) {
 	bytes, ok := m.PublicKeys[keyVersionName]
 	if !ok {
 		return nil, fmt.Errorf("missing public key for %q", keyVersionName)
@@ -75,12 +78,12 @@ func (m *MockSigner) PublicKey(ctx context.Context, keyVersionName string) ([]by
 }
 
 // PrimaryRootKeyVersion returns the keyVersionName of the active root key.
-func (m *MockSigner) PrimaryRootKeyVersion(ctx context.Context) (string, error) {
+func (m *MockSigner) PrimaryRootKeyVersion(_ context.Context) (string, error) {
 	return m.RootKeyVersion, nil
 }
 
 // PrimarySigningKeyVersion returns the keyVersionName of the active signing key.
-func (m *MockSigner) PrimarySigningKeyVersion(ctx context.Context) (string, error) {
+func (m *MockSigner) PrimarySigningKeyVersion(_ context.Context) (string, error) {
 	return m.SigningKeyVersion, nil
 }
 
@@ -129,7 +132,7 @@ func (m *MockSigner) NewMutation() styp.CertificateAuthorityMutation {
 
 // Finalize completes any unflushed changes that the given mutation represents. The mutation
 // object should be the same type as NewMutation returns.
-func (m *MockSigner) Finalize(ctx context.Context, mutation styp.CertificateAuthorityMutation) error {
+func (m *MockSigner) Finalize(_ context.Context, mutation styp.CertificateAuthorityMutation) error {
 	mut, ok := mutation.(*FakeMutation)
 	if !ok {
 		return fmt.Errorf("expected testlib.CertificateAuthorityMutation, got %v", mutation)
@@ -147,7 +150,7 @@ func (m *MockSigner) Finalize(ctx context.Context, mutation styp.CertificateAuth
 }
 
 // Wipeout removes all certificates and keys from the mock.
-func (m *MockSigner) Wipeout(ctx context.Context) error {
+func (m *MockSigner) Wipeout(context.Context) error {
 	m.CABundles = make(map[string][]byte)
 	m.Certificates = make(map[string][]byte)
 	m.PublicKeys = make(map[string][]byte)

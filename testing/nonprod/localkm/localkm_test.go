@@ -15,10 +15,10 @@
 package localkm
 
 import (
+	"context"
 	"crypto/rsa" // test-only for parsing in nonprod key manager.
 	"crypto/x509"
 	"encoding/pem"
-	"golang.org/x/net/context"
 	"os"
 	"path"
 	"strings"

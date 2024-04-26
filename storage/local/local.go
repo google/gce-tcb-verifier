@@ -16,8 +16,8 @@
 package local
 
 import (
+	"context"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"os"
 	"path"
@@ -70,7 +70,7 @@ func (s *StorageClient) Writer(ctx context.Context, bucket, object string) (io.W
 }
 
 // Exists returns whether a particular object exists in the given bucket, or an error.
-func (s *StorageClient) Exists(ctx context.Context, bucket, object string) (bool, error) {
+func (s *StorageClient) Exists(_ context.Context, bucket, object string) (bool, error) {
 	_, err := os.Stat(s.localPath(bucket, object))
 	if os.IsNotExist(err) {
 		return false, nil
@@ -88,12 +88,12 @@ func (s *StorageClient) IsNotExists(err error) bool {
 }
 
 // EnsureBucketExists creates the given bucket if it does not exist. Only the owner has privileges.
-func (s *StorageClient) EnsureBucketExists(ctx context.Context, bucket string) error {
+func (s *StorageClient) EnsureBucketExists(_ context.Context, bucket string) error {
 	return os.MkdirAll(path.Join(s.Root, bucket), defaultPerm)
 }
 
 // Wipeout deletes all objects in the given bucket (subdirectory)
-func (s *StorageClient) Wipeout(ctx context.Context, bucket string) error {
+func (s *StorageClient) Wipeout(_ context.Context, bucket string) error {
 	p := path.Join(s.Root, bucket)
 	if p == "" {
 		return fmt.Errorf("cannot delete current working directory")
