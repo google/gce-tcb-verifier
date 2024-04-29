@@ -16,9 +16,13 @@ package extract
 
 import (
 	"bytes"
+	"os"
+	"path"
 	"testing"
 	"time"
 
+	"github.com/google/gce-tcb-verifier/eventlog"
+	exel "github.com/google/gce-tcb-verifier/extract/eventlog"
 	"github.com/google/gce-tcb-verifier/sev"
 	"github.com/google/gce-tcb-verifier/testing/match"
 	"github.com/google/go-sev-guest/abi"
@@ -26,6 +30,8 @@ import (
 	tpmpb "github.com/google/go-tpm-tools/proto/attest"
 	"google.golang.org/protobuf/proto"
 )
+
+var myEfiGUID = []byte{0x85, 0x68, 0x7b, 0x6a, 0xbc, 0x92, 0xcd, 0x40, 0x9f, 0xb5, 0x30, 0x0f, 0x9d, 0x1e, 0xb0, 0xed}
 
 func TestExtractEndorsement(t *testing.T) {
 	now := time.Now()
@@ -152,6 +158,41 @@ func TestExtractEndorsement(t *testing.T) {
 				Provider: noextraqp,
 				Getter:   goodGetter,
 			},
+			want: []byte("ding ding"),
+		},
+		{
+			name: "RIM variable",
+			opts: func() *Options {
+				dir := t.TempDir()
+				efidir := t.TempDir()
+				evlog := path.Join(dir, "event_log")
+				f, err := os.OpenFile(evlog, os.O_RDWR|os.O_CREATE, 0644)
+				if err != nil {
+					t.Fatalf("os.OpenFile(%q) = _, %v, want nil", evlog, err)
+				}
+				defer f.Close()
+				if err := os.WriteFile(path.Join(efidir, "Var-6a7b6885-92bc-40cd-9fb5-300f9d1eb0ed"), []byte("0000ding ding"), 0644); err != nil {
+					t.Fatalf("could not write efivar file: %v", err)
+				}
+				el := &eventlog.CryptoAgileLog{
+					Header: eventlog.TCGPCClientPCREvent{},
+					Events: []*eventlog.TCGPCREvent2{
+						{EventType: eventlog.EvNoAction,
+							EventData: eventlog.TCGEventData{Event: &eventlog.SP800155Event3{
+								FirmwareManufacturerStr: eventlog.ByteSizedArray{Data: []byte(GCEFirmwareManufacturer)},
+								RIMLocatorType:          eventlog.RIMLocationVariable,
+								RIMLocator:              eventlog.Uint32SizedArray{Data: append(myEfiGUID, 'V', 0, 'a', 0, 'r', 0, 0, 0)},
+							}}},
+					},
+				}
+				el.Marshal(f)
+
+				return &Options{
+					EventLogLocation:     evlog,
+					FirmwareManufacturer: []byte(GCEFirmwareManufacturer),
+					UEFIVariableReader:   exel.MakeEfiVarFSReader(efidir),
+				}
+			}(),
 			want: []byte("ding ding"),
 		},
 	}

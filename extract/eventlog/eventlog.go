@@ -16,16 +16,13 @@
 package eventlog
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"os"
-	"path"
-	"unicode/utf16"
 
 	"github.com/google/gce-tcb-verifier/eventlog"
 	oabi "github.com/google/gce-tcb-verifier/ovmf/abi"
 	"github.com/google/go-sev-guest/verify/trust"
+	"github.com/google/uuid"
 )
 
 // ErrLocateGetterNil is returned when a LocateOptions.Getter is nil.
@@ -33,43 +30,32 @@ var ErrLocateGetterNil = errors.New("locate getter is nil")
 
 // LocateOptions contains options for locating data that can be local or remote.
 type LocateOptions struct {
-	Getter               trust.HTTPSGetter
-	EfiVarsMountLocation string
+	Getter             trust.HTTPSGetter
+	UEFIVariableReader VariableReader
 }
 
 // DefaultLocateOptions returns a default LocateOptions.
 func DefaultLocateOptions() *LocateOptions {
 	return &LocateOptions{
-		Getter:               trust.DefaultHTTPSGetter(),
-		EfiVarsMountLocation: "/sys/firmware/efi/efivars",
+		Getter:             trust.DefaultHTTPSGetter(),
+		UEFIVariableReader: MakeEfiVarFSReader("/sys/firmware/efi/efivars"),
 	}
 }
 
-// variableLocatorPath reads a UEFI variable name from a RIM locator of variable type.
-func variableLocatorPath(dst *string, data []byte) error {
+func variableLocatorDecode(loc []byte) (uuid.UUID, []uint8, error) {
 	// 16 for guid, 2 for 00-terminator.
-	if len(data) <= 18 {
-		return fmt.Errorf("variable name is too short: %d bytes", len(data))
+	if len(loc) <= 18 {
+		return uuid.UUID{}, nil, fmt.Errorf("variable name is too short: %d bytes", len(loc))
 	}
-	guid, err := oabi.FromEFIGUID(data[:16])
-	if err != nil {
-		return err
-	}
-	name := data[16:] // at least size 1
+	guid, _ := oabi.FromEFIGUID(loc[:16])
+	name := loc[16:] // at least size 1
 	if len(name)%2 != 0 {
-		return fmt.Errorf("couldn't read variable name as UTF-16 string: %v", name)
+		return uuid.UUID{}, nil, fmt.Errorf("couldn't read variable name as UCS-2 string: %v", name)
 	}
 	if !(name[len(name)-1] == 0 && name[len(name)-2] == 0) {
-		return fmt.Errorf("couldn't read variable name as 00-terminated UTF-16 string")
+		return uuid.UUID{}, nil, fmt.Errorf("couldn't read variable name as 00-terminated UCS-2 string")
 	}
-	utf16name := name[:len(name)-2]
-
-	str := make([]uint16, len(utf16name)/2)
-	for i := 0; i < len(utf16name); i += 2 {
-		str[i/2] = binary.LittleEndian.Uint16(utf16name[i : i+2])
-	}
-	*dst = fmt.Sprintf("%s-%s", string(utf16.Decode(str)), guid)
-	return nil
+	return guid, name, nil
 }
 
 // Locate returns the value of a RIM locator.
@@ -83,12 +69,11 @@ func Locate(locType uint32, loc []byte, opts *LocateOptions) ([]byte, error) {
 		}
 		return opts.Getter.Get(string(loc))
 	case eventlog.RIMLocationVariable:
-		var basename string
-		err := variableLocatorPath(&basename, loc)
+		guid, name, err := variableLocatorDecode(loc)
 		if err != nil {
 			return nil, err
 		}
-		return os.ReadFile(path.Join(opts.EfiVarsMountLocation, basename))
+		return opts.UEFIVariableReader.ReadVariable(guid, name)
 	default:
 		return nil, fmt.Errorf("unsupported locator type: %v", locType)
 	}
@@ -99,7 +84,7 @@ func Locate(locType uint32, loc []byte, opts *LocateOptions) ([]byte, error) {
 func RIMEventsFromEventLog(el *eventlog.CryptoAgileLog) map[uint32][]*eventlog.SP800155Event3 {
 	result := make(map[uint32][]*eventlog.SP800155Event3)
 	for _, evt := range el.Events {
-		if evt.EventType != eventlog.EvNoAction {
+		if evt.EventType != eventlog.EvNoAction || evt.EventData.Event == nil {
 			continue
 		}
 		sp800155, ok := evt.EventData.Event.(*eventlog.SP800155Event3)

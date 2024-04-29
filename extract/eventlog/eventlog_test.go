@@ -30,7 +30,7 @@ const (
 	rimGUID = "c51b6d7f-9c2a-42d6-be47-ca1368bdc333"
 )
 
-var myEfiGUID []byte = []byte{0x85, 0x68, 0x7b, 0x6a, 0xbc, 0x92, 0xcd, 0x40, 0x9f, 0xb5, 0x30, 0x0f, 0x9d, 0x1e, 0xb0, 0xed}
+var myEfiGUID = []byte{0x85, 0x68, 0x7b, 0x6a, 0xbc, 0x92, 0xcd, 0x40, 0x9f, 0xb5, 0x30, 0x0f, 0x9d, 0x1e, 0xb0, 0xed}
 
 func TestUEFIVariable(t *testing.T) {
 	tcs := []struct {
@@ -42,17 +42,27 @@ func TestUEFIVariable(t *testing.T) {
 		{
 			name: "happy path",
 			data: append(myEfiGUID, 'V', 0, 'a', 0, 'r', 0, 0, 0),
-			want: "Var-" + myGUID,
+			want: "/Var-" + myGUID,
+		},
+		{
+			name:    "happy utf-16, unhappy UCS-2",
+			data:    append(myEfiGUID, 0x3c, 0xd8, 0x89, 0xdf, 0, 0),
+			wantErr: "codepoint 0x1f389 is unrepresentable in UCS-2",
+		},
+		{
+			name: "happy UCS-2",
+			data: append(myEfiGUID, 0x22, 0x6f, 0x57, 0x5b, 0x27, 0x59, 0x7d, 0x59, 0x4d, 0x30, 0, 0),
+			want: "/漢字大好き-" + myGUID,
 		},
 		{
 			name:    "odd length",
 			data:    append(myEfiGUID, 'V', 0, 'a', 0, 'r', 0, 0),
-			wantErr: "couldn't read variable name as UTF-16 string",
+			wantErr: "couldn't read variable name as UCS-2 string",
 		},
 		{
 			name:    "bad terminator no zeros",
 			data:    append(myEfiGUID, 'V', 0, 'a', 0, 'r', 0),
-			wantErr: "00-terminated UTF-16 string",
+			wantErr: "00-terminated UCS-2 string",
 		},
 		{
 			name:    "too short",
@@ -63,14 +73,18 @@ func TestUEFIVariable(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			var out string
-			if err := variableLocatorPath(&out, tc.data); !match.Error(err, tc.wantErr) {
-				t.Fatalf("variableLocatorPath(_, %v) = %v errored unexpectedly. Want %q", tc.data, err, tc.wantErr)
+			guid, name, err := variableLocatorDecode(tc.data)
+			if err == nil {
+				out, err = MakeEfiVarFSReader("").varBasename(guid, name)
+			}
+			if !match.Error(err, tc.wantErr) {
+				t.Fatalf("variableLocatorDecode(_, %v) = %v errored unexpectedly. Want %q", tc.data, err, tc.wantErr)
 			}
 			if tc.wantErr != "" {
 				return
 			}
 			if out != tc.want {
-				t.Errorf("variableLocatorPath(_, %v) wrote %q, want %q", tc.data, out, tc.want)
+				t.Errorf("variableLocatorDecode(_, %v) wrote %q, want %q", tc.data, out, tc.want)
 			}
 		})
 	}
@@ -78,8 +92,15 @@ func TestUEFIVariable(t *testing.T) {
 
 func TestLocate(t *testing.T) {
 	dir := t.TempDir()
+	dir2 := t.TempDir()
 	varloc := path.Join(dir, "Var-"+myGUID)
-	err := os.WriteFile(varloc, []byte{0xc0, 0xde}, 0644)
+	varloc2 := path.Join(dir2, "Var-"+myGUID)
+	err := os.WriteFile(varloc, []byte{7, 0, 0, 0, 0xc0, 0xde}, 0644)
+	if err != nil {
+		t.Fatalf("os.WriteFile(%q) = %v, want nil", varloc, err)
+	}
+	// no 4-byte attribute header.
+	err = os.WriteFile(varloc2, []byte{0xc0, 0xde}, 0644)
 	if err != nil {
 		t.Fatalf("os.WriteFile(%q) = %v, want nil", varloc, err)
 	}
@@ -116,7 +137,7 @@ func TestLocate(t *testing.T) {
 			opts: &LocateOptions{
 				Getter: test.SimpleGetter(map[string][]byte{}),
 			},
-			wantErr: "404",
+			wantErr: "404", // SimpleGetter behavior for unmapped URI.
 		},
 		{
 			name:    "uri no getter",
@@ -130,9 +151,18 @@ func TestLocate(t *testing.T) {
 			loc:     append(myEfiGUID, 'V', 0, 'a', 0, 'r', 0, 0, 0),
 			loctype: eventlog.RIMLocationVariable,
 			opts: &LocateOptions{
-				EfiVarsMountLocation: dir,
+				UEFIVariableReader: MakeEfiVarFSReader(dir),
 			},
 			want: []byte{0xc0, 0xde},
+		},
+		{
+			name:    "no efivarfs attributes",
+			loc:     append(myEfiGUID, 'V', 0, 'a', 0, 'r', 0, 0, 0),
+			loctype: eventlog.RIMLocationVariable,
+			opts: &LocateOptions{
+				UEFIVariableReader: MakeEfiVarFSReader(dir2),
+			},
+			wantErr: "variable contents ill-formed. [192 222] does not start with 4-byte attribute header",
 		},
 		{
 			name:    "unhappy variable",

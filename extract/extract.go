@@ -25,12 +25,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 
+	"github.com/google/gce-tcb-verifier/eventlog"
+	exel "github.com/google/gce-tcb-verifier/extract/eventlog"
 	"github.com/google/gce-tcb-verifier/extract/extractsev"
 	"github.com/google/gce-tcb-verifier/sev"
 	"github.com/google/gce-tcb-verifier/verify"
 	"github.com/google/go-sev-guest/abi"
 	spb "github.com/google/go-sev-guest/proto/sevsnp"
+	"github.com/google/go-sev-guest/verify/trust"
 	tpmpb "github.com/google/go-tpm-tools/proto/attest"
 	"go.uber.org/multierr"
 	"google.golang.org/protobuf/proto"
@@ -46,13 +50,14 @@ var (
 	// ErrUnknownFormat is returned when an attestation file cannot be decoded from any of the
 	// supported forms.
 	ErrUnknownFormat = errors.New("unknown attestation format")
+	// ErrEventLogPathEmpty is returned when the event log path in Options is empty.
+	ErrEventLogPathEmpty = errors.New("event log path is empty")
 )
 
 const (
 	// GCEFirmwareManufacturer is the expected FirmwareManufacturer value in an SP800-155 Event3 event
 	// on a GCE VM.
-	GCEFirmwareManufacturer    = "GCE"
-	defaultEfiVarMountLocation = "/sys/firmware/efi/efivars"
+	GCEFirmwareManufacturer = "GCE"
 )
 
 // QuoteProvider provides a raw quote within a trusted execution environment.
@@ -63,22 +68,81 @@ type QuoteProvider interface {
 	GetRawQuote(reportData [64]byte) ([]uint8, error)
 }
 
-// HTTPSGetter provides a Get function to return the body of an https GET request.
-type HTTPSGetter interface {
-	Get(url string) ([]byte, error)
-}
-
 // Options provides configuration for RIM extraction logic.
 type Options struct {
-	Provider         QuoteProvider
-	Getter           HTTPSGetter
-	EventLogLocation string
+	Provider             QuoteProvider
+	Getter               trust.HTTPSGetter
+	FirmwareManufacturer []byte
+	EventLogLocation     string
+	UEFIVariableReader   exel.VariableReader
 	// Quote is any of the supported formats. If empty, the Provider will be used to get a quote.
 	Quote []byte
 }
 
-// FromEventLog returns the contents of a UEFI variable that an SP 800-155 event points to.
+// DefaultOptions returns the default options for RIM extraction.
+func DefaultOptions() *Options {
+	lopts := exel.DefaultLocateOptions()
+	return &Options{
+		// Provider:             &client.TEEQuoteProvider{},
+		Getter:               lopts.Getter,
+		FirmwareManufacturer: []byte(GCEFirmwareManufacturer),
+		EventLogLocation:     "/sys/kernel/security/tpm0/binary_bios_measurements",
+		UEFIVariableReader:   lopts.UEFIVariableReader,
+		Quote:                []byte{},
+	}
+}
+
+func elFromFile(path string) (*eventlog.CryptoAgileLog, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read event log file %q: %v", path, err)
+	}
+	defer f.Close()
+	el := &eventlog.CryptoAgileLog{}
+	if err := el.Unmarshal(f); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal event log file %q: %v", path, err)
+	}
+	return el, nil
+}
+
+// fromEventLog returns the contents of a UEFI variable that an SP 800-155 event points to.
 func (opts *Options) fromEventLog() ([]byte, error) {
+	if opts == nil {
+		return nil, ErrOptionsNil
+	}
+	if opts.EventLogLocation == "" {
+		return nil, ErrEventLogPathEmpty
+	}
+
+	el, err := elFromFile(opts.EventLogLocation)
+	if err != nil {
+		return nil, err
+	}
+	evts := exel.RIMEventsFromEventLog(el)
+	// Raw data takes precedence over UEFI variables.
+	if raws, ok := evts[eventlog.RIMLocationRaw]; ok && len(raws) != 0 {
+		for _, evt := range raws {
+			if bytes.Equal(evt.FirmwareManufacturerStr.Data, opts.FirmwareManufacturer) {
+				return evt.RIMLocator.Data, nil
+			}
+		}
+	}
+
+	// UEFI variables take precedence over URIs
+	if vars, ok := evts[eventlog.RIMLocationVariable]; ok && len(vars) != 0 {
+		for _, evt := range vars {
+			// No specific firmware manufacturer => get the first event.
+			if len(opts.FirmwareManufacturer) == 0 ||
+				bytes.Equal(evt.FirmwareManufacturerStr.Data, opts.FirmwareManufacturer) {
+				return exel.Locate(evt.RIMLocatorType, evt.RIMLocator.Data, &exel.LocateOptions{
+					Getter:             opts.Getter,
+					UEFIVariableReader: opts.UEFIVariableReader,
+				})
+			}
+		}
+	}
+
+	// If the RimLocatorType is URI, local UEFI device, or UEFI variable
 	return nil, fmt.Errorf("unimplemented")
 }
 
