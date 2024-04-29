@@ -16,9 +16,9 @@ package gcetcbendorsement
 
 import (
 	"bytes"
+	"context"
 	"encoding/pem"
 	"fmt"
-	"context"
 
 	"google.golang.org/protobuf/proto"
 
@@ -72,14 +72,19 @@ func modifyPolicy(sev *epb.VMSevSnp, policy *cpb.Policy, opts *SevPolicyOptions)
 			return fmt.Errorf("minimum_guest_svn %d rejects %d", policy.GetMinimumGuestSvn(),
 				sev.Svn)
 		}
-	} else {
-		policy.MinimumGuestSvn = sev.Svn
 	}
+	// Otherwise, the GUEST_SVN is not set by GCE due to not using an IDBLOCK.
+
 	// Despite these values getting signed, they are not expected in GCE since GCE does not use an
 	// IDBLOCK.
 	// policy.ImageId = sev.GetImageId()
 	// policy.FamilyId = sev.GetFamilyId()
-	policy.Policy = sev.GetPolicy()
+
+	// Allow the base policy to overwrite the signed policy if --overwrite is given.
+	if !opts.Overwrite || policy.Policy == 0 {
+		policy.Policy = sev.GetPolicy()
+	}
+
 	if opts.LaunchVmsas == 0 {
 		// Regardless of Overwrite, unspecified VMSAs needs to be present for --launch_vmsas=0.
 		if !opts.AllowUnspecifiedVmsas {
