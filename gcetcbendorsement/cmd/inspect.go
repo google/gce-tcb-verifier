@@ -15,11 +15,11 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"context"
 
-	"github.com/google/gce-tcb-verifier/gcetcbendorsement/lib/gcetcbendorsement"
+	"github.com/google/gce-tcb-verifier/gcetcbendorsement"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"

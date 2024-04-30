@@ -74,7 +74,7 @@ func TestMask(t *testing.T) {
 		{
 			name: "timestamp and map key",
 			mask: &fmpb.FieldMask{Paths: []string{"timestamp", "sev_snp.measurements[2]"}},
-			want: []string{"1969-12-31T16:00:04-08:00\n030102"},
+			want: []string{"1970-01-01T00:00:04Z\n030102"},
 			opts: defaultOpts(BytesHex),
 		},
 		{

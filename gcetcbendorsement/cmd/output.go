@@ -17,7 +17,7 @@ package cmd
 import (
 	"os"
 
-	"github.com/google/gce-tcb-verifier/gcetcbendorsement/lib/gcetcbendorsement"
+	"github.com/google/gce-tcb-verifier/gcetcbendorsement"
 )
 
 // IO provides the functionality to produce output as commands.
