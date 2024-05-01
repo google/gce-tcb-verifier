@@ -23,10 +23,17 @@ import (
 	"github.com/google/uuid"
 )
 
-// Unmarshallable is an interface for populating the object by unmarshalling data
+// Serializable is an interface for populating the object by unmarshalling data, or marshalling
+// the object to bytes.
+type Serializable interface {
+	Unmarshal(io.Reader) error
+	Marshal(io.Writer) error
+	Create() Serializable
+}
+
+// Unmarshallable is an interface for populating the object by unmarshalling data.
 type Unmarshallable interface {
 	Unmarshal(io.Reader) error
-	Create() Unmarshallable
 }
 
 // ByteSizedArray represents an array of bytes no longer than 255 entries that is serialized first
@@ -43,7 +50,7 @@ func (b *ByteSizedArray) Unmarshal(r io.Reader) error {
 }
 
 // Create creates a new ByteSizedArray.
-func (*ByteSizedArray) Create() Unmarshallable {
+func (*ByteSizedArray) Create() Serializable {
 	return &ByteSizedArray{}
 }
 
@@ -54,7 +61,7 @@ type Uint32SizedArray struct {
 }
 
 // Create creates a new Uint32SizedArray.
-func (*Uint32SizedArray) Create() Unmarshallable {
+func (*Uint32SizedArray) Create() Serializable {
 	return &Uint32SizedArray{}
 }
 
@@ -77,13 +84,13 @@ func makeSized[T any](size any) ([]T, error) {
 }
 
 // Uint32SizedArrayT represents a uint32 sized array of a given type, with elements that are
-// unmarshallable.
-type Uint32SizedArrayT[T Unmarshallable] struct {
+// serializable.
+type Uint32SizedArrayT[T Serializable] struct {
 	Array []T
 }
 
 // Create creates a Uint32SizedArrayT.
-func (*Uint32SizedArrayT[T]) Create() Unmarshallable {
+func (*Uint32SizedArrayT[T]) Create() Serializable {
 	return &Uint32SizedArrayT[T]{}
 }
 
@@ -148,6 +155,6 @@ func (g *EfiGUID) Unmarshal(r io.Reader) error {
 }
 
 // Create creates a new EfiGUID.
-func (*EfiGUID) Create() Unmarshallable {
+func (*EfiGUID) Create() Serializable {
 	return &EfiGUID{}
 }

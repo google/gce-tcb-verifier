@@ -29,8 +29,21 @@ var (
 	fakeSignature = [...]byte{'f', 'a', 'k', 'e', ' ', 's', 'i', 'g', 'n', 't', 'u', 'r', 'e', 0, 0, 0}
 )
 
+type fakeEvent struct {
+	Data []byte
+}
+
+func (e *fakeEvent) UnmarshalFromBytes(data []byte) error {
+	e.Data = data
+	return nil
+}
+
+func (e *fakeEvent) MarshalToBytes() ([]byte, error) {
+	return append(fakeSignature[:], e.Data...), nil
+}
+
 func init() {
-	eventFactories[hex.EncodeToString(fakeSignature[:])] = func() UnmarshallableFromBytes {
+	eventFactories[hex.EncodeToString(fakeSignature[:])] = func() SerializableFromBytes {
 		return &UnknownEvent{}
 	}
 }
@@ -308,6 +321,69 @@ func TestReadCryptoAgileLog(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ReadCryptoAgileLog(%v) returned diff (-want +got):\n%s", tc.data, diff)
+			}
+		})
+	}
+}
+
+func TestWriteCryptoAgileLog(t *testing.T) {
+	tcs := []struct {
+		name    string
+		data    *CryptoAgileLog
+		want    []byte
+		wantErr string
+	}{
+		{
+			name: "happy path",
+			want: combine(
+				// TCGPCClientPCREvent
+				[]byte{2, 0, 0, 0},
+				[]byte{5, 0, 0, 0}, foosha1[:],
+				[]byte{0, 0, 0, 0},
+				// TCG2PCREvent
+				[]byte{3, 0, 0, 0},
+				[]byte{7, 0, 0, 0},
+				[]byte{2, 0, 0, 0},    // number of digests
+				[]byte{tpmAlgSHA1, 0}, // algID uint16
+				foosha1[:],
+				[]byte{tpmAlgSHA256, 0}, // algID uint16
+				foosha256[:],
+				[]byte{19, 0, 0, 0}, fakeSignature[:], []byte{'f', 'o', 'o'}),
+			data: &CryptoAgileLog{
+				Header: TCGPCClientPCREvent{
+					PCRIndex:   2,
+					EventType:  5,
+					SHA1Digest: foosha1,
+					EventData:  TCGEventData{},
+				},
+				Events: []*TCGPCREvent2{
+					{
+						PCRIndex:  3,
+						EventType: 7,
+						Digests: Uint32SizedArrayT[*TaggedDigest]{Array: []*TaggedDigest{
+							{AlgID: tpmAlgSHA1, Digest: foosha1[:]},
+							{AlgID: tpmAlgSHA256, Digest: foosha256[:]},
+						}},
+						EventData: TCGEventData{
+							Event: &fakeEvent{Data: []byte{'f', 'o', 'o'}},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			w := bytes.NewBuffer(nil)
+			if err := tc.data.Marshal(w); !match.Error(err, tc.wantErr) {
+				t.Fatalf("%v.Marshal(w) = %v errored unexpectedly. Want %q", tc.data, err, tc.wantErr)
+			}
+			if tc.wantErr != "" {
+				return
+			}
+			got := w.Bytes()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("%v.Marshal(w) returned diff (-want +got):\n%s", tc.data, diff)
 			}
 		})
 	}

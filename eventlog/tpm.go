@@ -58,7 +58,22 @@ func (d *TaggedDigest) Unmarshal(r io.Reader) error {
 	return nil
 }
 
+// Marshal outputs a TaggedDigest as its binary encoding.
+func (d *TaggedDigest) Marshal(w io.Writer) error {
+	size, ok := tpmAlgoSize[d.AlgID]
+	if !ok {
+		return fmt.Errorf("unsupported digest algorithm %d", d.AlgID)
+	}
+	if err := littleWrite(w, "AlgID", d.AlgID); err != nil {
+		return err
+	}
+	if n, err := w.Write(d.Digest); err != nil || n != int(size) {
+		return fmt.Errorf("failed to write digest sized %d (wrote %d bytes): %v", size, n, err)
+	}
+	return nil
+}
+
 // Create creates a TaggedDigest.
-func (*TaggedDigest) Create() Unmarshallable {
+func (*TaggedDigest) Create() Serializable {
 	return &TaggedDigest{}
 }

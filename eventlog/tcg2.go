@@ -102,3 +102,45 @@ func (evt *SP800155Event3) UnmarshalFromBytes(data []byte) error {
 	}
 	return nil
 }
+
+// MarshalToBytes writes the SP800155Event3 structure to its binary form and returns the byte array.
+func (evt *SP800155Event3) MarshalToBytes() ([]byte, error) {
+	w := bytes.NewBuffer(TcgSP800155Event3Signature[:])
+	if err := littleWrite(w, "PlatformManufacturerID", evt.PlatformManufacturerID); err != nil {
+		return nil, err
+	}
+	if err := littleWrite(w, "ReferenceManifestGuid", &evt.ReferenceManifestGUID); err != nil {
+		return nil, err
+	}
+	if err := littleWrite(w, "PlatformManufacturerStr", &evt.PlatformManufacturerStr); err != nil {
+		return nil, err
+	}
+	if err := littleWrite(w, "PlatformModel", &evt.PlatformModel); err != nil {
+		return nil, err
+	}
+	if err := littleWrite(w, "PlatformVersion", &evt.PlatformVersion); err != nil {
+		return nil, err
+	}
+	if err := littleWrite(w, "FirmwareManufacturerStr", &evt.FirmwareManufacturerStr); err != nil {
+		return nil, err
+	}
+	if err := littleWrite(w, "FirmwareManufacturerID", evt.FirmwareManufacturerID); err != nil {
+		return nil, err
+	}
+	if err := littleWrite(w, "FirmwareVersion", &evt.FirmwareVersion); err != nil {
+		return nil, err
+	}
+	if err := littleWrite(w, "RIMLocatorType", evt.RIMLocatorType); err != nil {
+		return nil, err
+	}
+	if err := littleWrite(w, "RIMLocator", &evt.RIMLocator); err != nil {
+		return nil, err
+	}
+	if err := littleWrite(w, "PlatformCertLocatorType", evt.PlatformCertLocatorType); err != nil {
+		return nil, err
+	}
+	if err := littleWrite(w, "PlatformCertLocator", &evt.PlatformCertLocator); err != nil {
+		return nil, err
+	}
+	return w.Bytes(), nil
+}

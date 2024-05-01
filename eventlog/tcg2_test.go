@@ -246,3 +246,52 @@ func TestReadTcg2PCREventSp800155Event3(t *testing.T) {
 		})
 	}
 }
+
+func TestWriteTcg2PCREventSp800155Event3(t *testing.T) {
+	goodEvent := makeEvent(len(fields))
+	tcs := []struct {
+		name    string
+		data    *TCGPCREvent2
+		want    []byte
+		wantErr string
+	}{
+		{
+			name: "happy path",
+			data: &TCGPCREvent2{
+				PCRIndex:  2,
+				EventType: 5,
+				Digests: Uint32SizedArrayT[*TaggedDigest]{Array: []*TaggedDigest{
+					{AlgID: tpmAlgSHA1, Digest: foosha1[:]},
+					{AlgID: tpmAlgSHA256, Digest: foosha256[:]},
+				}},
+				EventData: TCGEventData{
+					Event: goodStruct,
+				},
+			},
+			want: combine([]byte{2, 0, 0, 0},
+				[]byte{5, 0, 0, 0},
+				[]byte{2, 0, 0, 0},    // number of digests
+				[]byte{tpmAlgSHA1, 0}, // algID uint16
+				foosha1[:],
+				[]byte{tpmAlgSHA256, 0}, // algID uint16
+				foosha256[:],
+				binary.LittleEndian.AppendUint32(nil, 16+uint32(len(goodEvent))), TcgSP800155Event3Signature[:],
+				goodEvent),
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			w := bytes.NewBuffer(nil)
+			if err := tc.data.Marshal(w); !match.Error(err, tc.wantErr) {
+				t.Fatalf("WriteTCGPCREvent2(%v) = %v errored unexpectedly. Want %q", tc.data, err, tc.wantErr)
+			}
+			if tc.wantErr != "" {
+				return
+			}
+			got := w.Bytes()
+			if diff := cmp.Diff(got, tc.want); diff != "" {
+				t.Fatalf("unexpected diff (-got +want):\n%s", diff)
+			}
+		})
+	}
+}
