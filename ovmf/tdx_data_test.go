@@ -550,10 +550,6 @@ func TestUnacceptedMemRanges(t *testing.T) {
 }
 
 func TestGetTDHOBList(t *testing.T) {
-	flagState := *disableTDXUefiEarlyAccept
-	defer func() {
-		*disableTDXUefiEarlyAccept = flagState
-	}()
 	tcs := []struct {
 		name                string
 		gpr                 GuestPhysicalRegion
@@ -700,14 +696,20 @@ func TestGetTDHOBList(t *testing.T) {
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			*disableTDXUefiEarlyAccept = tc.disableEarlyAccept
-			got, err := getTDHOBList(tc.gpr, tc.privateResources, tc.unacceptedResources)
+			p := &tdxFwParser{
+				TDHOBregion: &MaterialGuestPhysicalRegion{
+					GPR: tc.gpr,
+				},
+				DisableEarlyAccept: tc.disableEarlyAccept,
+			}
+			err := p.getTDHOBList(tc.privateResources, tc.unacceptedResources)
 			if !match.Error(err, tc.wantErr) {
 				t.Errorf("getTDHOBList(%v, %v, %v) returned error %v, want error %v", tc.gpr, tc.privateResources, tc.unacceptedResources, err, tc.wantErr)
 			}
 			if tc.wantErr != "" {
 				return
 			}
+			got := p.TDHOBregion.HostBuffer
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("getTDHOBList(%v, %v, %v) returned diff (-want +got): %v", tc.gpr, tc.privateResources, tc.unacceptedResources, diff)
 			}
