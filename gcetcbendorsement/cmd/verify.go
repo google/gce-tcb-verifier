@@ -15,9 +15,9 @@
 package cmd
 
 import (
+	"context"
 	"crypto/x509"
 	"fmt"
-	"context"
 	"os"
 
 	"github.com/google/gce-tcb-verifier/gcetcbendorsement/lib/gcetcbendorsement"
@@ -119,7 +119,7 @@ func (c *verifyCommand) runE(cmd *cobra.Command, args []string) error {
 func makeVerify(ctx0 context.Context) *cobra.Command {
 	v := &verifyCommand{}
 	cmd := &cobra.Command{
-		Use: "verify [CMD] PATH [options]",
+		Use: "verify PATH [options]",
 		Long: `Outputs the result of verifying the endorsement.
 
 If the root certificate is not provided, the command will attempt to download
