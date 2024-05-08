@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/google/gce-tcb-verifier/gcetcbendorsement/lib/gcetcbendorsement"
+	"github.com/google/gce-tcb-verifier/gcetcbendorsement"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
 	"github.com/google/gce-tcb-verifier/verify"
 	"github.com/spf13/cobra"

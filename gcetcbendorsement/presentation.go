@@ -22,7 +22,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/google/gce-tcb-verifier/gcetcbendorsement/parsepath/parsepath"
+	"github.com/google/gce-tcb-verifier/gcetcbendorsement/parsepath"
 	"github.com/google/uuid"
 	"golang.org/x/term"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -165,7 +165,7 @@ func RenderTimestamp(timeFormat string) FieldRenderer {
 		if !ok {
 			return fmt.Errorf("unexpected type %T. Want *tpb.Timestamp", tm)
 		}
-		timet := time.Unix(ts.GetSeconds(), int64(ts.GetNanos()))
+		timet := time.Unix(ts.GetSeconds(), int64(ts.GetNanos())).UTC()
 		_, err := opts.Writer.Write([]byte(fmt.Sprintf("%s", timet.Format(timeFormat))))
 		return err
 	}

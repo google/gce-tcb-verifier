@@ -134,10 +134,10 @@ func modifyPolicy(sev *epb.VMSevSnp, policy *cpb.Policy, opts *SevPolicyOptions)
 // endorsement.
 func SevPolicy(ctx context.Context, endorsement *epb.VMLaunchEndorsement, opts *SevPolicyOptions) (*cpb.Policy, error) {
 	golden := &epb.VMGoldenMeasurement{}
-	if err := proto.Unmarshal(endorsement.SerializedUefiGolden, golden); err != nil {
+	if err := proto.Unmarshal(endorsement.GetSerializedUefiGolden(), golden); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal serialized golden measurement: %v", err)
 	}
-	if !golden.HasSevSnp() {
+	if golden.SevSnp == nil {
 		return nil, fmt.Errorf("golden measurement does not contain sev_snp")
 	}
 

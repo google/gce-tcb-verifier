@@ -145,7 +145,8 @@ func TestSevPolicy(t *testing.T) {
 				Base:        &cpb.Policy{MinimumGuestSvn: 3},
 				Overwrite:   true,
 			},
-			want: &cpb.Policy{MinimumGuestSvn: 2, Measurement: []byte("meas")},
+			// The guest svn from golden measurements is not checkable due to the lack of IDBLOCK in GCE.
+			want: &cpb.Policy{MinimumGuestSvn: 3, Measurement: []byte("meas")},
 		},
 		{
 			name: "policy conflict",
@@ -175,7 +176,8 @@ func TestSevPolicy(t *testing.T) {
 				Base:        &cpb.Policy{Policy: 5},
 				Overwrite:   true,
 			},
-			want: &cpb.Policy{Policy: 4, Measurement: []byte("meas")},
+			// The policy from the golden measurements is not checkable due to the lack of IDBLOCK in GCE.
+			want: &cpb.Policy{Policy: 5, Measurement: []byte("meas")},
 		},
 		{
 			name: "id key bad cert",
@@ -292,7 +294,7 @@ func TestSevPolicy(t *testing.T) {
 					SevSnp: &epb.VMSevSnp{Policy: 458752, Svn: 5},
 				})},
 			opts: &SevPolicyOptions{AllowUnspecifiedVmsas: true, Overwrite: true},
-			want: &cpb.Policy{Policy: 458752, MinimumVersion: "0.0", MinimumGuestSvn: 5},
+			want: &cpb.Policy{Policy: 458752, MinimumVersion: "0.0"},
 		},
 	}
 	for _, tc := range tcs {

@@ -16,14 +16,14 @@
 package cmd
 
 import (
-	"errors"
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/gce-tcb-verifier/extract"
 	"github.com/google/gce-tcb-verifier/verify"
-	"github.com/google/go-sev-guest/client/client"
-	"github.com/google/go-sev-guest/verify/trust/trust"
+	"github.com/google/go-sev-guest/client"
+	"github.com/google/go-sev-guest/verify/trust"
 	"github.com/google/logger"
 	"github.com/spf13/cobra"
 )
