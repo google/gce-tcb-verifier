@@ -41,6 +41,7 @@ import (
 	spb "github.com/google/go-sev-guest/proto/sevsnp"
 	test "github.com/google/go-sev-guest/testing"
 	testclient "github.com/google/go-sev-guest/testing/client"
+	"github.com/google/go-sev-guest/verify/trust"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -50,8 +51,8 @@ import (
 var (
 	mu               sync.Once
 	qp               extract.QuoteProvider
-	getter           extract.HTTPSGetter
-	rootlessGetter   extract.HTTPSGetter
+	getter           trust.HTTPSGetter
+	rootlessGetter   trust.HTTPSGetter
 	now              time.Time
 	goodQuote        []byte
 	fakeEndorsement  []byte
@@ -404,7 +405,7 @@ func TestVerify(t *testing.T) {
 	tcs := []struct {
 		name    string
 		input   []string
-		getter  extract.HTTPSGetter
+		getter  trust.HTTPSGetter
 		io      *testIO
 		wantErr string
 		want    []byte
@@ -531,7 +532,7 @@ func TestSevPolicy(t *testing.T) {
 	tcs := []struct {
 		name    string
 		input   []string
-		getter  extract.HTTPSGetter
+		getter  trust.HTTPSGetter
 		io      *testIO
 		want    func(got []byte) error
 		wantErr string
@@ -635,7 +636,7 @@ func TestSevValidate(t *testing.T) {
 	tcs := []struct {
 		name    string
 		input   []string
-		getter  extract.HTTPSGetter
+		getter  trust.HTTPSGetter
 		io      *testIO
 		wantErr string
 	}{

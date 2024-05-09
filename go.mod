@@ -5,6 +5,7 @@ go 1.20
 require (
 	cloud.google.com/go/iam v1.1.6
 	cloud.google.com/go/kms v1.15.7
+	github.com/cyphar/filepath-securejoin v0.2.5
 	github.com/golang/protobuf v1.5.4
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-sev-guest v0.11.1
