@@ -234,7 +234,6 @@ func TestNoSevSnp(t *testing.T) {
 	c.SetArgs([]string{
 		"--add_snp=false",
 		"--release_branch", wantRelease,
-		"--snp_svn", "5",
 		"--uefi", p,
 	})
 	if err := c.Execute(); err != nil {

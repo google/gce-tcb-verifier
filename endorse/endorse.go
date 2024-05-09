@@ -30,6 +30,7 @@ import (
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
 	"github.com/google/gce-tcb-verifier/sev"
 	styp "github.com/google/gce-tcb-verifier/sign/types"
+	"github.com/google/gce-tcb-verifier/tdx"
 	"github.com/google/gce-tcb-verifier/timeproto"
 	"google.golang.org/protobuf/proto"
 )
@@ -43,6 +44,8 @@ var ErrNoContext = errors.New("no endorse context found")
 type Context struct {
 	// SevSnp is an optional request for endorsing SEV-SNP-specific information for the image.
 	SevSnp *sev.SnpEndorsementRequest
+	// Tdx is an optional request for endorsing TDX-specific information for the image.
+	Tdx *tdx.EndorsementRequest
 	// Image is the full contents of the UEFI binary to endorse.
 	Image  []byte
 	ClSpec uint64
@@ -100,11 +103,16 @@ func GoldenMeasurement(ctx context.Context) (*epb.VMGoldenMeasurement, error) {
 	if err != nil {
 		return nil, err
 	}
+	if ec.Tdx == nil && ec.SevSnp == nil {
+		return nil, errors.New("no supported technology specified in signing request")
+	}
 	goldenBuilder := &epb.VMGoldenMeasurement{}
 
 	// Track the UEFI digest.
 	digest := sha512.Sum384(ec.Image)
 	goldenBuilder.Digest = digest[:]
+	goldenBuilder.ClSpec = ec.ClSpec
+	goldenBuilder.Commit = ec.Commit
 
 	if ec.SevSnp != nil {
 		snp, err := sev.UnsignedSnp(ec.Image, ec.SevSnp)
@@ -112,11 +120,15 @@ func GoldenMeasurement(ctx context.Context) (*epb.VMGoldenMeasurement, error) {
 			return nil, err
 		}
 		goldenBuilder.SevSnp = snp
-		goldenBuilder.ClSpec = ec.ClSpec
-		goldenBuilder.Commit = ec.Commit
-		return goldenBuilder, nil
 	}
-	return nil, errors.New("no supported technology specified in signing request")
+	if ec.Tdx != nil {
+		tdx, err := tdx.UnsignedTDX(ec.Image, ec.Tdx)
+		if err != nil {
+			return nil, err
+		}
+		goldenBuilder.Tdx = tdx
+	}
+	return goldenBuilder, nil
 }
 
 // SignDoc returns a signed endorsement of a given golden measurement.
@@ -179,6 +191,13 @@ func outputSevMeasurement(ec *Context, snp *epb.VMSevSnp) {
 	}
 }
 
+func outputTdxMeasurement(_ *Context, tdx *epb.VMTdx) {
+	for _, meas := range tdx.Measurements {
+		fmt.Printf("RAM:%d UnacceptedMemory:%t MRTD:%s\n", meas.RamGib, !meas.EarlyAccept,
+			hex.EncodeToString(meas.Mrtd))
+	}
+}
+
 // Ovmf calculates the golden measurement of the given OVMF image, signs a document with the
 // measurement and associated metadata, submits it, and performs finalization.
 func Ovmf(ctx context.Context) error {
@@ -191,9 +210,11 @@ func Ovmf(ctx context.Context) error {
 		return fmt.Errorf("golden measurement calculation error: %s", err)
 	}
 	if ec.MeasurementOnly {
-		hasSevSnp := golden.SevSnp != nil
-		if hasSevSnp {
+		if golden.SevSnp != nil {
 			outputSevMeasurement(ec, golden.SevSnp)
+		}
+		if golden.Tdx != nil {
+			outputTdxMeasurement(ec, golden.Tdx)
 		}
 		return nil
 	}

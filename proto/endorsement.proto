@@ -44,6 +44,7 @@ message VMGoldenMeasurement {
   // final intermediate order. The last certificate will have signed cert.
   bytes ca_bundle = 6;
   VMSevSnp sev_snp = 7;
+  VMTdx tdx = 8;
 }
 
 message VMSevSnp {
@@ -65,4 +66,25 @@ message VMSevSnp {
   // Optional. PEM-encoded certs for Identity..Author..Root. If a singleton,
   // only an Id-key is used.
   bytes ca_bundle = 6;
+}
+
+message VMTdx {
+  message Measurement {
+    // The amount of RAM in GiB provided to the VM. This is relevant to the
+    // construction of the measured TDHOB page that includes memory regions'
+    // resource attributes.
+    uint32 ram_gib = 1;
+    // If true, EFI_UNACCEPTED_MEMORY not presented to guest.
+    // All memory is accepted by the firmware. Relevant to the TDHOB page
+    // since the resource attribute will include
+    // EFI_RESOURCE_ATTRIBUTE_NEEDS_EARLY_ACCEPT.
+    bool early_accept = 2;
+    // The SHA-384 digest of the measurement operations for the VM at launch.
+    bytes mrtd = 3;
+  }
+  // The Google-reported security version number of this UEFI on TDX.
+  uint32 svn = 1;
+
+  // Expected MRTD report field values given legal configurations.
+  repeated Measurement measurements = 2;
 }

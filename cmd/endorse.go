@@ -24,9 +24,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/gce-tcb-verifier/cmd/output"
 	"github.com/google/gce-tcb-verifier/endorse"
 	"github.com/google/gce-tcb-verifier/sev"
+	"github.com/google/gce-tcb-verifier/tdx"
 
 	edk2pb "github.com/google/gce-tcb-verifier/proto/scrtmversion"
 	sgpb "github.com/google/go-sev-guest/proto/sevsnp"
@@ -39,17 +39,21 @@ import (
 // represented in endorse.Context.
 type endorseCommand struct {
 	AddSnp   bool
+	AddTdx   bool
 	UefiPath string
 }
 
 // AddFlags adds any implementation-specific flags for this command component.
 func (f *endorseCommand) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(&f.AddSnp, "add_snp", false,
-		"Add SEV-SNP information to endorsement")
+		"Add AMD SEV-SNP information to endorsement")
+	cmd.PersistentFlags().BoolVar(&f.AddTdx, "add_tdx", false,
+		"Add Intel TDX information to endorsement")
 	addUefiFlag(cmd, &f.UefiPath)
 
 	ec := &endorse.Context{
 		SevSnp: &sev.SnpEndorsementRequest{},
+		Tdx:    &tdx.EndorsementRequest{},
 	}
 	cmd.PersistentFlags().StringVar(&ec.CandidateName, "candidate_name", "",
 		"Release candidate the signature should be submitted to directly. Optional.")
@@ -65,8 +69,6 @@ func (f *endorseCommand) AddFlags(cmd *cobra.Command) {
 	addOutDirFlag(cmd, &ec.OutDir)
 	addDryRunFlag(cmd, &ec.DryRun)
 	addTimeFlag(cmd, &ec.Timestamp)
-	cmd.PersistentFlags().Uint32Var(&ec.SevSnp.Svn, "snp_svn", 0,
-		"SEV-SNP Security version number for UEFI")
 	cmd.PersistentFlags().StringVar(&ec.SevSnp.FamilyID, "snp_family_id", "", "SEV-SNP UUID of FAMILY_ID")
 	cmd.PersistentFlags().StringVar(&ec.SevSnp.ImageID, "snp_image_id", "",
 		"SEV-SNP UUID of IMAGE_ID (if empty, then random)")
@@ -75,6 +77,8 @@ func (f *endorseCommand) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().AddGoFlag(
 		amdProductVar(&ec.SevSnp.Product, "snp_product", sgpb.SevProduct_SEV_PRODUCT_MILAN,
 			"SEV-SNP product line. One of Milan, Genoa"))
+	cmd.PersistentFlags().BoolVar(&ec.Tdx.IncludeEarlyAccept, "tdx_include_early_accept", false, "If true, adds MRTD values for all supported machine shapes with all memory configured for acceptance in the firmware.")
+	cmd.PersistentFlags().StringSliceVar(&ec.Tdx.MachineShapes, "tdx_machine_shapes", nil, "GCE machine shapes whose measurement-relevant configuration should be enumerated for endorsement.")
 	cmd.PersistentFlags().BoolVar(&ec.MeasurementOnly, "measurement_only", false, "Only output the OVMF measurement for added technologies.")
 	cmd.PersistentFlags().StringVar(&ec.SnapshotDir, "snapshot_dir", "", "Write each firmware and its signature to related files in --out_dir.")
 	cmd.PersistentFlags().BoolVar(&ec.SnapshotToHead, "snapshot_to_head", false,
@@ -99,6 +103,21 @@ func validateSnpFlags(f *sev.SnpEndorsementRequest) error {
 	return nil
 }
 
+// Returns the SVN associated with the firmware at the given path.
+// The SVN for SEV, TDX, and non-CoCo are all the same for now.
+func scrtmMain(path string) (bool, uint32, error) {
+	// Read the bundled SVN if it exists.
+	versionPath := strings.Replace(path, ".fd", "_scrtm_ver.pb", 1)
+	if versionBytes, err := os.ReadFile(versionPath); err == nil {
+		var version edk2pb.SCRTMVersion
+		if err := proto.Unmarshal(versionBytes, &version); err != nil {
+			return false, 0, err
+		}
+		return true, uint32(version.Version), nil
+	}
+	return false, 0, nil
+}
+
 // PersistentPreRunE returns an error if the results of the parsed flags constitute an error.
 func (f *endorseCommand) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	if f.UefiPath == "" {
@@ -112,20 +131,26 @@ func (f *endorseCommand) PersistentPreRunE(cmd *cobra.Command, _ []string) error
 		return err
 	}
 	ec.ImageName = path.Base(f.UefiPath)
+	ok, version, err := scrtmMain(f.UefiPath)
+	if err != nil {
+		return err
+	}
 	if f.AddSnp {
 		if err := validateSnpFlags(ec.SevSnp); err != nil {
 			return err
 		}
-		// Read the bundled SVN if it exists.
-		versionPath := strings.Replace(f.UefiPath, ".fd", "_scrtm_ver.pb", 1)
-		output.Infof(cmd.Context(), "versionPath: %s", versionPath)
-		if versionBytes, err := os.ReadFile(versionPath); err == nil {
-			var version edk2pb.SCRTMVersion
-			if err := proto.Unmarshal(versionBytes, &version); err != nil {
-				return err
-			}
-			ec.SevSnp.Svn = uint32(version.Version)
+		if ok {
+			ec.SevSnp.Svn = version
 		}
+	} else {
+		ec.SevSnp = nil
+	}
+	if f.AddTdx {
+		if ok {
+			ec.Tdx.Svn = version
+		}
+	} else {
+		ec.Tdx = nil
 	}
 	// Note: Size() does not require crypto/sha1 to be linked in.
 	if len(ec.Commit) != 0 && len(ec.Commit) != crypto.SHA1.Size() {

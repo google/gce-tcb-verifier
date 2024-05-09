@@ -34,13 +34,22 @@ func regionsForGB(sizeInGB int) []ovmf.GuestPhysicalRegion {
 }
 
 // https://cloud.google.com/compute/docs/general-purpose-machines#c3_machine_types
+var shapeRAMGib = map[string]int{
+	"c3-standard-4":   16,
+	"c3-standard-8":   32,
+	"c3-standard-22":  88,
+	"c3-standard-44":  176,
+	"c3-standard-88":  352,
+	"c3-standard-176": 704,
+}
+
 var shapeBanks = map[string][]ovmf.GuestPhysicalRegion{
-	"c3-standard-4":   regionsForGB(16),
-	"c3-standard-8":   regionsForGB(32),
-	"c3-standard-22":  regionsForGB(88),
-	"c3-standard-44":  regionsForGB(176),
-	"c3-standard-88":  regionsForGB(352),
-	"c3-standard-176": regionsForGB(704),
+	"c3-standard-4":   regionsForGB(shapeRAMGib["c3-standard-4"]),
+	"c3-standard-8":   regionsForGB(shapeRAMGib["c3-standard-8"]),
+	"c3-standard-22":  regionsForGB(shapeRAMGib["c3-standard-22"]),
+	"c3-standard-44":  regionsForGB(shapeRAMGib["c3-standard-44"]),
+	"c3-standard-88":  regionsForGB(shapeRAMGib["c3-standard-88"]),
+	"c3-standard-176": regionsForGB(shapeRAMGib["c3-standard-176"]),
 }
 
 func machineTypeToRAMBanks(machineType string) ([]ovmf.GuestPhysicalRegion, error) {
