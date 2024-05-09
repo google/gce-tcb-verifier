@@ -17,7 +17,6 @@ package ovmf
 import (
 	"bytes"
 	"encoding/binary"
-	"flag"
 	"fmt"
 	"io"
 
@@ -26,12 +25,6 @@ import (
 	"github.com/google/gce-tcb-verifier/ovmf/abi"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/wrapperspb"
-)
-
-var (
-	disableTDXUefiEarlyAccept = flag.Bool("disable_tdx_uefi_early_accept", true,
-		"If true, signal TDX Uefi to only accept the first 4GB of the available memory as part of the "+
-			"lazy accept feature.")
 )
 
 const (
@@ -144,9 +137,10 @@ func validateTDXMetadataSections(firmwareLen uint32, rawMetadata *abi.TDXMetadat
 }
 
 type tdxFwParser struct {
-	Regions     []*MaterialGuestPhysicalRegion
-	Sections    []*abi.TDXMetadataSection
-	TDHOBregion *MaterialGuestPhysicalRegion
+	Regions            []*MaterialGuestPhysicalRegion
+	Sections           []*abi.TDXMetadataSection
+	TDHOBregion        *MaterialGuestPhysicalRegion
+	DisableEarlyAccept bool
 }
 
 func (p *tdxFwParser) validateMetadataSectionGpr(sectionType uint32, gpr GuestPhysicalRegion) error {
@@ -204,7 +198,7 @@ func (p *tdxFwParser) parse(firmware []byte, guestRAMbanks []GuestPhysicalRegion
 	// Don't copy the region since we need to update the buffer within the list.
 	p.TDHOBregion = p.Regions[tdHOBregionIndex.Value]
 	unacceptedResources := unacceptedMemRanges(privateResources, guestRAMbanks)
-	p.TDHOBregion.HostBuffer, err = getTDHOBList(p.TDHOBregion.GPR, privateResources, unacceptedResources)
+	err = p.getTDHOBList(privateResources, unacceptedResources)
 	return p.Regions, err
 }
 
@@ -292,11 +286,12 @@ func appendTDHobResource(resourceType abi.EFIResourceType,
 	resource.WriteTo(buf)
 }
 
-func getTDHOBList(gpr GuestPhysicalRegion, privateResources []GuestPhysicalRegion, unacceptedResources []GuestPhysicalRegion) ([]byte, error) {
+func (p *tdxFwParser) getTDHOBList(privateResources []GuestPhysicalRegion, unacceptedResources []GuestPhysicalRegion) error {
 	numResourceDescriptors := len(unacceptedResources) + len(privateResources)
 	hobSize := uint32(abi.SizeofEFIHOBResourceDescriptor * numResourceDescriptors)
 	endOfHOBlistOffset := abi.SizeOfEFIHOBHandoffInfoTable + hobSize
 	tdHOBbuf := bytes.NewBuffer(nil)
+	gpr := p.TDHOBregion.GPR
 	tdHOBbuf.Grow(int(gpr.Length))
 
 	handoffInfo := abi.EFIHOBHandoffInfoTable{
@@ -328,7 +323,7 @@ func getTDHOBList(gpr GuestPhysicalRegion, privateResources []GuestPhysicalRegio
 		// It is guaranteed that there will be an unaccepted region ending before
 		// 4 GB as the Uefi binary region ends at 4GB which would be part of already
 		// added TDX memory regions.
-		if (unacceptedGpr.end() <= 4*gib) || !*disableTDXUefiEarlyAccept {
+		if (unacceptedGpr.end() <= 4*gib) || !p.DisableEarlyAccept {
 			unacceptedResourceAttributes |= abi.EFIResourceAttributeNeedsEarlyAccept
 		}
 		appendTDHobResource(abi.EFIResourceMemoryUnaccepted,
@@ -343,16 +338,25 @@ func getTDHOBList(gpr GuestPhysicalRegion, privateResources []GuestPhysicalRegio
 	endOfList.WriteTo(tdHOBbuf)
 
 	if uint64(tdHOBbuf.Len()) > gpr.Length {
-		return nil, fmt.Errorf("TD HOB buffer is overflowing GPR length, max length: 0x%x, actual length: 0x%x", gpr.Length, tdHOBbuf.Len())
+		return fmt.Errorf("TD HOB buffer is overflowing GPR length, max length: 0x%x, actual length: 0x%x", gpr.Length, tdHOBbuf.Len())
 	}
 
 	// Resize tdhob_buffer to span the whole of TD HOB range.
 	tdHOBbuf.Write(make([]byte, int(gpr.Length)-tdHOBbuf.Len()))
 
-	return tdHOBbuf.Bytes(), nil
+	p.TDHOBregion.HostBuffer = tdHOBbuf.Bytes()
+	return nil
+}
+
+// ExtractMaterialGuestPhysicalRegionsNoUnacceptedMemory extracts the TDX guest physical regions from
+// the firmware binary with the direction that all memory will be accepted early in the firmware.
+func ExtractMaterialGuestPhysicalRegionsNoUnacceptedMemory(firmware []byte, guestRAMbanks []GuestPhysicalRegion) ([]*MaterialGuestPhysicalRegion, error) {
+	return (&tdxFwParser{}).parse(firmware, guestRAMbanks)
 }
 
 // ExtractMaterialGuestPhysicalRegions extracts the TDX guest physical regions from the firmware binary
+// with the direction that the firmware provide some unaccepted memory to the guest OS as *not*
+// marked for acceptance by the firmware.
 func ExtractMaterialGuestPhysicalRegions(firmware []byte, guestRAMbanks []GuestPhysicalRegion) ([]*MaterialGuestPhysicalRegion, error) {
-	return (&tdxFwParser{}).parse(firmware, guestRAMbanks)
+	return (&tdxFwParser{DisableEarlyAccept: true}).parse(firmware, guestRAMbanks)
 }
