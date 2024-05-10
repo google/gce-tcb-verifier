@@ -16,7 +16,10 @@ package abi
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -26,6 +29,10 @@ const (
 	SizeofEFIHOBResourceDescriptor = 48
 	// SizeofHOBGenericHeader is the size of the HOB generic header ABI representation.
 	SizeofHOBGenericHeader = 8
+	// SizeofHOBGUID is the size of the GUID HOB header prior to associated data.
+	SizeofHOBGUID = SizeofHOBGenericHeader + 16
+	// MaxGUIDHOBDataSize is the maximum size of an EFI_HOB_GUID_TYPE's associated data.
+	MaxGUIDHOBDataSize = 0x1000 - SizeofHOBGUID
 )
 
 // EFIResourceType is an enum type for resource descriptors.
@@ -64,6 +71,8 @@ const (
 	EFIHOBHandoffTableVersion = 9
 	// EFIHOBTypeResourceDescriptor is a HobType in a generic header for a resource descriptor block.
 	EFIHOBTypeResourceDescriptor = 3
+	// EFIHOBTypeGUIDExtension is a HobType in a generic header for a GUID extension block.
+	EFIHOBTypeGUIDExtension = 4
 	// EFIHOBTypeEndOfHOBList is a HobType in a generic header for the end of the HOB list.
 	EFIHOBTypeEndOfHOBList = 0xFFFF
 )
@@ -196,4 +205,80 @@ func (d EFIHOBResourceDescriptor) WriteTo(w io.Writer) (int64, error) {
 		return 0, err
 	}
 	return SizeofEFIHOBResourceDescriptor, nil
+}
+
+// EFIHOBGUID is for an EFI_HOB_TYPE_GUID_EXTENSION for named unstructured data associated with a
+// given GUID.
+type EFIHOBGUID struct {
+	Header EFIHOBGenericHeader
+	GUID   EFIGUID
+	Data   []byte
+}
+
+func sizedWrite(w io.Writer, data []byte, want int) (int, error) {
+	n, err := w.Write(data)
+	if err != nil {
+		return n, err
+	}
+	if n != want {
+		return n, fmt.Errorf("write truncated to %d, expected %d", n, want)
+	}
+	return n, nil
+}
+
+type writeToable interface {
+	WriteTo(io.Writer) (int64, error)
+}
+
+func sizedWriteTo(a writeToable, w io.Writer, want int64) (int64, error) {
+	n, err := a.WriteTo(w)
+	if err != nil {
+		return n, err
+	}
+	if n != want {
+		return n, fmt.Errorf("write truncated to %d, expected %d", n, want)
+	}
+	return n, nil
+}
+
+// WriteTo writes the HOB GUID to the given writer.
+func (h EFIHOBGUID) WriteTo(w io.Writer) (int64, error) {
+	if h.Header.HobType != EFIHOBTypeGUIDExtension {
+		return 0, fmt.Errorf("invalid HOB type: %d", h.Header.HobType)
+	}
+	wantLength := SizeofHOBGUID + len(h.Data)
+	if int(h.Header.HobLength) != wantLength {
+		return 0, fmt.Errorf("invalid HOB length: %d, want %d", h.Header.HobLength, wantLength)
+	}
+	if n, err := sizedWriteTo(h.Header, w, SizeofHOBGenericHeader); err != nil {
+		return n, err
+	}
+	var guid [16]byte
+	h.GUID.Put(guid[:])
+	if n, err := sizedWrite(w, guid[:], 16); err != nil {
+		return int64(n), err
+	}
+	if n, err := sizedWrite(w, h.Data, len(h.Data)); err != nil {
+		return int64(n), err
+	}
+	return int64(h.Header.HobLength), nil
+}
+
+// CreateEFIHOBGUID returns a correctly constructed EFIHOBGUID for the given GUID'ed data.
+func CreateEFIHOBGUID(guid uuid.UUID, data []byte) (EFIHOBGUID, error) {
+	dataSize := (len(data) + 0x7) &^ 0x7 // HOBs must be 8-byte-aligned.
+	if dataSize != len(data) {
+		data = append(data, make([]byte, dataSize-len(data))...)
+	}
+	if len(data) > MaxGUIDHOBDataSize {
+		return EFIHOBGUID{}, fmt.Errorf("data too long: %d > %d", len(data), MaxGUIDHOBDataSize)
+	}
+	return EFIHOBGUID{
+		Header: EFIHOBGenericHeader{
+			HobType:   EFIHOBTypeGUIDExtension,
+			HobLength: uint16(SizeofHOBGenericHeader + 16 + len(data)),
+		},
+		GUID: FromUUID(guid),
+		Data: data,
+	}, nil
 }

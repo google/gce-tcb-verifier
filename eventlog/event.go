@@ -83,10 +83,9 @@ func (d *TCGEventData) Unmarshal(r io.Reader) error {
 			return nil
 		}
 		d.Event = factory()
-		d.Event.UnmarshalFromBytes(chunk[EventSignatureSize:])
-	} else {
-		d.Event = &UnknownEvent{Data: chunk}
+		return d.Event.UnmarshalFromBytes(chunk[EventSignatureSize:])
 	}
+	d.Event = &UnknownEvent{Data: chunk}
 	return nil
 }
 

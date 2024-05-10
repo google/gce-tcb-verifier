@@ -16,13 +16,16 @@ package endorse
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha512"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"path"
 
 	"github.com/google/gce-tcb-verifier/cmd/output"
+	"github.com/google/gce-tcb-verifier/keys"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
 	rpb "github.com/google/gce-tcb-verifier/proto/releases"
 	"github.com/google/gce-tcb-verifier/timeproto"
@@ -265,10 +268,24 @@ func snapshotEndorsement(ctx context.Context, cops ChangeOps, endorsement *epb.V
 	}
 	fwPath := ec.VCS.ReleasePath(ctx, path.Join(ec.SnapshotDir, ec.ImageName))
 	sigPath := fmt.Sprintf("%s.signed", fwPath)
+	evtsPath := fmt.Sprintf("%s.evts", fwPath)
 	if err := writeEndorsement(ctx, sigPath, endorsement, cops); err != nil {
 		return err
 	}
-	if err := cops.WriteOrCreateFiles(ctx, &File{Path: fwPath, Contents: ec.Image}); err != nil {
+	var random io.Reader
+	k, err := keys.FromContext(ctx)
+	if err != nil {
+		random = rand.Reader
+	} else {
+		random = k.Random
+	}
+	events, err := makeEvents(random, endorsement)
+	if err != nil {
+		return err
+	}
+	if err := cops.WriteOrCreateFiles(ctx,
+		&File{Path: fwPath, Contents: ec.Image},
+		&File{Path: evtsPath, Contents: events}); err != nil {
 		return err
 	}
 	if err := cops.SetBinaryWritable(ctx, fwPath); err != nil {

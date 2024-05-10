@@ -101,6 +101,9 @@ const (
 	SizeofTDXMetdataSection = 32
 	// TDXMetadataDescriptorMagic is the magic number for the TDXMetadataDescriptor Signature.
 	TDXMetadataDescriptorMagic = 0x46564454 // 'T', 'D', 'V', 'F'
+
+	// Tcg800155PlatformIDEventHobGUID is the GUID for the any SP800155 platform ID event HOB.
+	Tcg800155PlatformIDEventHobGUID = "e2c3bc69-615c-4b5b-8e5c-a033a9c25ed6"
 )
 
 // FwGUIDEntry is an ABI type found in OVMF binaries for describing a run of data in the binary as
@@ -172,6 +175,14 @@ func PutUUID(data []byte, guid uuid.UUID) error {
 	binary.LittleEndian.PutUint16(data[6:8], binary.BigEndian.Uint16(guid[6:8]))
 	copy(data[8:16], guid[8:16])
 	return nil
+}
+
+// FromUUID converts a uuid.UUID to EFIGUID.
+func FromUUID(guid uuid.UUID) EFIGUID {
+	var data [16]byte
+	PutUUID(data[:], guid)
+	result, _ := parseEFIGUID(data[:])
+	return result
 }
 
 // Put writes f in its ABI format to the beginning of data.

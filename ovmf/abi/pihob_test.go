@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/gce-tcb-verifier/testing/match"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 )
 
 // failWriter is a writer that fails after a certain number of bytes are written. This is to get
@@ -239,6 +240,137 @@ func TestWriteTo(t *testing.T) {
 				0, 0, 0x20, 0, 0, 0, 0, 0, // Resource length
 			},
 		},
+		{
+			name: "guid hob fail 1",
+			w:    newFailWriter(0),
+			h: EFIHOBGUID{
+				Header: EFIHOBGenericHeader{
+					HobType:   EFIHOBTypeGUIDExtension,
+					HobLength: 27,
+				},
+				GUID: EFIGUID{Data1: 0xabcdef99, Data2: 0x4312, Data3: 0x8954, Data4: [...]byte{0, 1, 2, 3, 4, 5, 6, 7}},
+				Data: []byte("foo"),
+			},
+			wantErr: "fail1",
+		},
+		{
+			name: "guid hob fail 2",
+			w:    newFailWriter(1),
+			h: EFIHOBGUID{
+				Header: EFIHOBGenericHeader{
+					HobType:   EFIHOBTypeGUIDExtension,
+					HobLength: 27,
+				},
+				GUID: EFIGUID{Data1: 0xabcdef99, Data2: 0x4312, Data3: 0x8954, Data4: [...]byte{0, 1, 2, 3, 4, 5, 6, 7}},
+				Data: []byte("foo"),
+			},
+			wantErr: "fail2",
+		},
+		{
+			name: "guid hob fail 3",
+			w:    newFailWriter(2),
+			h: EFIHOBGUID{
+				Header: EFIHOBGenericHeader{
+					HobType:   EFIHOBTypeGUIDExtension,
+					HobLength: 27,
+				},
+				GUID: EFIGUID{Data1: 0xabcdef99, Data2: 0x4312, Data3: 0x8954, Data4: [...]byte{0, 1, 2, 3, 4, 5, 6, 7}},
+				Data: []byte("foo"),
+			},
+			wantErr: "fail3",
+		},
+		{
+			name: "guid hob fail 4",
+			w:    newFailWriter(3),
+			h: EFIHOBGUID{
+				Header: EFIHOBGenericHeader{
+					HobType:   EFIHOBTypeGUIDExtension,
+					HobLength: 27,
+				},
+				GUID: EFIGUID{Data1: 0xabcdef99, Data2: 0x4312, Data3: 0x8954, Data4: [...]byte{0, 1, 2, 3, 4, 5, 6, 7}},
+				Data: []byte("foo"),
+			},
+			wantErr: "fail4",
+		},
+		{
+			name: "guid hob fail 5",
+			w:    newFailWriter(4),
+			h: EFIHOBGUID{
+				Header: EFIHOBGenericHeader{
+					HobType:   EFIHOBTypeGUIDExtension,
+					HobLength: 27,
+				},
+				GUID: EFIGUID{Data1: 0xabcdef99, Data2: 0x4312, Data3: 0x8954, Data4: [...]byte{0, 1, 2, 3, 4, 5, 6, 7}},
+				Data: []byte("foo"),
+			},
+			wantErr: "fail5",
+		},
+		{
+			name: "guid hob",
+			w:    newFailWriter(6),
+			h: EFIHOBGUID{
+				Header: EFIHOBGenericHeader{
+					HobType:   EFIHOBTypeGUIDExtension,
+					HobLength: 27,
+				},
+				GUID: EFIGUID{Data1: 0xabcdef99, Data2: 0x4312, Data3: 0x8954, Data4: [...]byte{0, 1, 2, 3, 4, 5, 6, 7}},
+				Data: []byte("foo"),
+			},
+			want: int64(SizeofHOBGUID + len([]byte("foo"))),
+			wantBytes: []byte{
+				4, 0, // type
+				27, 0, // length
+				0, 0, 0, 0, // reserved
+				0x99, 0xef, 0xcd, 0xab, 0x12, 0x43, 0x54, 0x89, 0, 1, 2, 3, 4, 5, 6, 7, // GUID
+				'f', 'o', 'o',
+			},
+		},
+		{
+			name: "created guid hob",
+			w:    newFailWriter(6),
+			h: func() EFIHOBGUID {
+				guid := uuid.MustParse(Tcg800155PlatformIDEventHobGUID)
+				r, err := CreateEFIHOBGUID(guid, []byte("foo"))
+				if err != nil {
+					t.Fatalf("CreateEFIHOBGUID(%v) = %v, want nil", guid, err)
+				}
+				return r
+			}(),
+			want: int64(SizeofHOBGUID + 8), // len("foo") rounds to the nearest 8.
+			wantBytes: []byte{
+				4, 0, // type
+				32, 0, // length
+				0, 0, 0, 0, // reserved
+				0x69, 0xbc, 0xc3, 0xe2, 0x5c, 0x61, 0x5b, 0x4b, 0x8e, 0x5c, 0xa0, 0x33, 0xa9, 0xc2, 0x5e, 0xd6, // GUID
+				'f', 'o', 'o', 0, 0, 0, 0, 0,
+			},
+		},
+		{
+			name: "guid hob bad type",
+			w:    newFailWriter(6),
+			h: EFIHOBGUID{
+				Header: EFIHOBGenericHeader{
+					HobType:   EFIHOBTypeResourceDescriptor,
+					HobLength: 32,
+				},
+				GUID: EFIGUID{Data1: 0xabcdef99, Data2: 0x4312, Data3: 0x8954, Data4: [...]byte{0, 1, 2, 3, 4, 5, 6, 7}},
+				Data: append([]byte("foo"), 0, 0, 0, 0, 0),
+			},
+			wantErr: "invalid HOB type: 3",
+		},
+		{
+			name: "guid hob bad length",
+			w:    newFailWriter(6),
+			h: EFIHOBGUID{
+				Header: EFIHOBGenericHeader{
+					HobType:   EFIHOBTypeGUIDExtension,
+					HobLength: 33,
+				},
+				GUID: EFIGUID{Data1: 0xabcdef99, Data2: 0x4312, Data3: 0x8954, Data4: [...]byte{0, 1, 2, 3, 4, 5, 6, 7}},
+				Data: append([]byte("foo"), 0, 0, 0, 0, 0),
+			},
+			wantErr: "invalid HOB length: 33, want 32",
+		},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
@@ -260,5 +392,25 @@ func TestWriteTo(t *testing.T) {
 				t.Errorf("%v.WriteTo(b) got %v. Want %v", tc.h, got2, tc.wantBytes)
 			}
 		})
+	}
+}
+
+func TestTcgGUID(t *testing.T) {
+	var guid [16]byte
+	if err := PutUUID(guid[:], uuid.MustParse(Tcg800155PlatformIDEventHobGUID)); err != nil {
+		t.Fatal(err)
+	}
+	eguid, err := parseEFIGUID(guid[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := EFIGUID{
+		Data1: 0xe2c3bc69, // Hexdump looks like bc69 e2c3 615c 4b5b 5c8e 33a0 c2a9 d65e
+		Data2: 0x615c,
+		Data3: 0x4b5b,
+		Data4: [...]byte{0x8e, 0x5c, 0xa0, 0x33, 0xa9, 0xc2, 0x5e, 0xd6},
+	}
+	if diff := cmp.Diff(want, eguid); diff != "" {
+		t.Fatalf("EFI_GUID diff (-want +got): %s", diff)
 	}
 }

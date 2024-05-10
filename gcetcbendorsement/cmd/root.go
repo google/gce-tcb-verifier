@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/google/gce-tcb-verifier/extract"
+	exel "github.com/google/gce-tcb-verifier/extract/eventlog"
 	"github.com/google/gce-tcb-verifier/verify"
 	"github.com/google/go-sev-guest/client"
 	"github.com/google/go-sev-guest/verify/trust"
@@ -36,10 +37,11 @@ var (
 
 // Backend provides implementations for quote creation, internet access, and the current time.
 type Backend struct {
-	Provider extract.QuoteProvider
-	Getter   verify.HTTPSGetter
-	Now      time.Time
-	IO       IO
+	Provider              extract.QuoteProvider
+	Getter                verify.HTTPSGetter
+	MakeEfiVariableReader func(mountpath string) exel.VariableReader
+	Now                   time.Time
+	IO                    IO
 }
 
 type backendKeyType struct{}
@@ -77,7 +79,10 @@ func init() {
 	RootCmd = MakeRoot(context.WithValue(context.Background(), backendKey, &Backend{
 		Provider: qp,
 		Getter:   trust.DefaultHTTPSGetter(),
-		Now:      time.Now(),
-		IO:       OSIO{},
+		MakeEfiVariableReader: func(path string) exel.VariableReader {
+			return exel.MakeEfiVarFSReader(path)
+		},
+		Now: time.Now(),
+		IO:  OSIO{},
 	}))
 }
