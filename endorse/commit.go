@@ -336,7 +336,7 @@ func changeEndorsements(ctx context.Context, cops ChangeOps, endorsement *epb.VM
 
 // Creates commit for extending the endorsement manifest and writing out the serialized endorsement
 // and attempts to submit. Submit may fail, thus "try".
-func tryChange(ctx context.Context, endorsement *epb.VMLaunchEndorsement) (any, error) {
+func tryChange(ctx context.Context, change func(context.Context, ChangeOps) (string, error)) (any, error) {
 	ec, err := FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -348,7 +348,7 @@ func tryChange(ctx context.Context, endorsement *epb.VMLaunchEndorsement) (any, 
 			return nil, err
 		}
 	}
-	certPath, err := changeEndorsements(ctx, cops, endorsement)
+	certPath, err := change(ctx, cops)
 	if err != nil {
 		if cops != nil {
 			cops.Destroy()
@@ -369,17 +369,17 @@ func tryChange(ctx context.Context, endorsement *epb.VMLaunchEndorsement) (any, 
 	return ec.VCS.Result(commit, certPath), nil
 }
 
-// Runs f to attempt a submit transaction without merge conflict or service irregularity. Each
-// attempt should use a fresh workspace to work from the most up-to-date source to both avoid a
-// conflict and drop entries in the manifest due to a write-write data race.
-func retrySubmit(ctx context.Context, f func() (any, error)) (any, error) {
+// RetrySubmit runs f to attempt a submit transaction without merge conflict or service
+// irregularity. Each attempt should use a fresh workspace to work from the most up-to-date source
+// to both avoid a conflict and drop entries in the manifest due to a write-write data race.
+func RetrySubmit(ctx context.Context, f func(context.Context, ChangeOps) (string, error)) (any, error) {
 	ec, err := FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var tries int
 	for {
-		resp, err := f()
+		resp, err := tryChange(ctx, f)
 		if err != nil {
 			output.Warningf(ctx, "Commit failed: %v", err)
 			if ec.VCS.RetriableError(err) {
@@ -403,8 +403,8 @@ func retrySubmit(ctx context.Context, f func() (any, error)) (any, error) {
 
 func commitEndorsement(ctx context.Context, endorsement *epb.VMLaunchEndorsement) (any, error) {
 	output.Infof(ctx, "Starting endorsement submission.")
-	resp, err := retrySubmit(ctx, func() (any, error) {
-		return tryChange(ctx, endorsement)
+	resp, err := RetrySubmit(ctx, func(ctx context.Context, cops ChangeOps) (string, error) {
+		return changeEndorsements(ctx, cops, endorsement)
 	})
 	if err != nil {
 		return nil, err
