@@ -120,7 +120,7 @@ func measureZeroContentUefiPages(data *ovmf.SevData, measurement *SnpMeasurement
 
 func measureUefi(data *ovmf.SevData, measurement *SnpMeasurement, uefi []byte) error {
 	// Uefi is loaded at (4 *GiB - uefi.size())
-	if err := measurement.Update(uint64(RomTop-len(uefi)), uefi, PageTypeNormal); err != nil {
+	if err := measurement.Update(RomTop-uint64(len(uefi)), uefi, PageTypeNormal); err != nil {
 		return err
 	}
 
