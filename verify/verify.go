@@ -62,8 +62,8 @@ type HTTPSGetter interface {
 	Get(url string) ([]byte, error)
 }
 
-// GceTcbURL returns the URL to the named object within the gce-tcb-integrity storage bucket.
-func GceTcbURL(objectName string) string {
+// GCETcbURL returns the URL to the named object within the gce-tcb-integrity storage bucket.
+func GCETcbURL(objectName string) string {
 	return fmt.Sprintf("%s/gce_tcb_integrity/%s", gcsBaseURL, objectName)
 }
 
@@ -102,7 +102,7 @@ func SNPFamilyValidateFunc(familyID string, opts *Options) func(*spb.Attestation
 			if opts.Getter == nil {
 				return fmt.Errorf("endorsement getter is nil")
 			}
-			blob, err := opts.Getter.Get(GceTcbURL(extractsev.GceTcbObjectName(familyID, measurement)))
+			blob, err := opts.Getter.Get(GCETcbURL(extractsev.GCETcbObjectName(familyID, measurement)))
 			if err != nil {
 				return fmt.Errorf("could not fetch endorsement: %v", err)
 			}

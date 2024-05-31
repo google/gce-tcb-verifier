@@ -148,7 +148,7 @@ func fromSevSnpAttestationProto(at *spb.Attestation) ([]byte, string, error) {
 		return out, "", nil
 	}
 	meas := at.GetReport().GetMeasurement()
-	return nil, extractsev.GceTcbObjectName(sev.GCEUefiFamilyID, meas), nil
+	return nil, extractsev.GCETcbObjectName(sev.GCEUefiFamilyID, meas), nil
 }
 
 func fromTdxAttestationProto(at *tpb.QuoteV4) string {
@@ -264,7 +264,7 @@ func Endorsement(opts *Options) (out []byte, err error) {
 	if opts.Getter == nil {
 		internetErr = ErrGetterNil
 	} else {
-		endorsement, internetErr = opts.Getter.Get(verify.GceTcbURL(objectName))
+		endorsement, internetErr = opts.Getter.Get(verify.GCETcbURL(objectName))
 		if internetErr == nil {
 			return endorsement, nil
 		}

@@ -47,9 +47,9 @@ func gceTcbObjectPath(measurement []byte) string {
 	return fmt.Sprintf("sevsnp/%s.binarypb", hex.EncodeToString(measurement))
 }
 
-// GceTcbObjectName returns the expected object name within a GCS bucket for a firmware
+// GCETcbObjectName returns the expected object name within a GCS bucket for a firmware
 // measured for SEV-SNP.
-func GceTcbObjectName(familyID string, measurement []byte) string {
+func GCETcbObjectName(familyID string, measurement []byte) string {
 	return fmt.Sprintf("%s/%s", familyIDObjectPrefix(familyID), gceTcbObjectPath(measurement))
 }
 

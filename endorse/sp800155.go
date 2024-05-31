@@ -76,7 +76,7 @@ func uriEventHOB(rimGUID eventlog.EfiGUID, digest []byte) []byte {
 	// This will need to not be hardcoded when we're signing multiple builds at a time, but for now
 	// this works.
 	obj := fmt.Sprintf("ovmf_x64_csm/%s.fd.signed", hex.EncodeToString(digest))
-	return spHOB(googleSp800155Event(rimGUID, eventlog.RIMLocationURI, []byte(verify.GceTcbURL(obj))))
+	return spHOB(googleSp800155Event(rimGUID, eventlog.RIMLocationURI, []byte(verify.GCETcbURL(obj))))
 }
 
 // makeEvents returns the boot service UEFI variable contents the firmware will use to populate the
