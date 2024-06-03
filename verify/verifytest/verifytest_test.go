@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package verify
+package verifytest
 
 import (
 	"context"
@@ -40,7 +40,7 @@ import (
 	"github.com/google/gce-tcb-verifier/testing/match"
 	"github.com/google/gce-tcb-verifier/testing/ovmfsev"
 	"github.com/google/gce-tcb-verifier/timeproto"
-	"github.com/google/gce-tcb-verifier/verify/verifytest"
+	"github.com/google/gce-tcb-verifier/verify"
 	"github.com/google/go-sev-guest/abi"
 	spb "github.com/google/go-sev-guest/proto/sevsnp"
 	stest "github.com/google/go-sev-guest/testing"
@@ -66,7 +66,7 @@ const (
 
 func initSigner(t *testing.T) func() {
 	return func() {
-		results := verifytest.Data(t)
+		results := Data(t)
 		testSigner = results.TestSigner
 		testCA = results.TestCA
 		now = results.Now
@@ -77,7 +77,7 @@ func initSigner(t *testing.T) func() {
 func TestVerify(t *testing.T) {
 	initSignerOnce.Do(initSigner(t))
 	ctx0 := context.Background()
-	bundle, err := testCA.CABundle(ctx0, verifytest.SignKey)
+	bundle, err := testCA.CABundle(ctx0, SignKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func TestVerify(t *testing.T) {
 		Signature:            signature,
 	}
 
-	pool, err := ops.CertPool(ctx, testCA, verifytest.SignKey)
+	pool, err := ops.CertPool(ctx, testCA, SignKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,59 +178,59 @@ func TestVerify(t *testing.T) {
 		name        string
 		pool        *x509.CertPool
 		endorsement *epb.VMLaunchEndorsement
-		snp         *SNPOptions
+		snp         *verify.SNPOptions
 		wantErr     string
 	}{
 		{
 			name:        "happy path",
 			endorsement: endorsement,
 			pool:        pool,
-			snp:         &SNPOptions{},
+			snp:         &verify.SNPOptions{},
 		},
 		{
 			name:        "e2e happy path",
 			endorsement: scratchEndorsement,
 			pool:        pool,
-			snp:         &SNPOptions{},
+			snp:         &verify.SNPOptions{},
 		},
 		{
 			name:        "happy snp measurement [any VMSA]",
 			endorsement: endorsement,
 			pool:        pool,
-			snp:         &SNPOptions{measurement: fakeMeasurement},
+			snp:         &verify.SNPOptions{Measurement: fakeMeasurement},
 		},
 		{
 			name:        "happy snp measurement [4 VMSAs]",
 			endorsement: endorsement,
 			pool:        pool,
-			snp:         &SNPOptions{measurement: fakeMeasurement, ExpectedLaunchVMSAs: 4},
+			snp:         &verify.SNPOptions{Measurement: fakeMeasurement, ExpectedLaunchVMSAs: 4},
 		},
 		{
 			name:        "snp measurement wrong VMSAs",
 			endorsement: endorsement,
 			pool:        pool,
-			snp:         &SNPOptions{measurement: fakeMeasurement, ExpectedLaunchVMSAs: 8},
+			snp:         &verify.SNPOptions{Measurement: fakeMeasurement, ExpectedLaunchVMSAs: 8},
 			wantErr:     "no golden measurement for 8 launch VMSAs",
 		},
 		{
 			name:        "bad pool",
 			endorsement: endorsement,
 			pool:        badpool,
-			snp:         &SNPOptions{},
+			snp:         &verify.SNPOptions{},
 			wantErr:     "was not signed by a root of trust",
 		},
 		{
 			name:        "no cert",
 			endorsement: badEndorsement,
 			pool:        pool,
-			snp:         &SNPOptions{},
-			wantErr:     ErrNoEndorsementCert.Error(),
+			snp:         &verify.SNPOptions{},
+			wantErr:     verify.ErrNoEndorsementCert.Error(),
 		},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			digest := sha512.Sum384(uefi)
-			if err := EndorsementProto(tc.endorsement, &Options{
+			if err := verify.EndorsementProto(tc.endorsement, &verify.Options{
 				SNP:                tc.snp,
 				RootsOfTrust:       tc.pool,
 				ExpectedUefiSha384: digest[:],
@@ -251,7 +251,7 @@ func TestSNPValidateFunc(t *testing.T) {
 			name: "missing okay",
 			opt: &validate.CertEntryOption{
 				Kind:     validate.CertEntryAllowMissing,
-				Validate: SNPValidateFunc(&Options{SNP: &SNPOptions{}}),
+				Validate: verify.SNPValidateFunc(&verify.Options{SNP: &verify.SNPOptions{}}),
 			},
 			wantErr: "",
 		},
@@ -259,7 +259,7 @@ func TestSNPValidateFunc(t *testing.T) {
 			name: "missing and required, no getter",
 			opt: &validate.CertEntryOption{
 				Kind:     validate.CertEntryRequire,
-				Validate: SNPValidateFunc(&Options{SNP: &SNPOptions{}}),
+				Validate: verify.SNPValidateFunc(&verify.Options{SNP: &verify.SNPOptions{}}),
 			},
 			wantErr: "endorsement getter is nil",
 		},
@@ -267,7 +267,7 @@ func TestSNPValidateFunc(t *testing.T) {
 			name: "missing and required, getter error",
 			opt: &validate.CertEntryOption{
 				Kind: validate.CertEntryRequire,
-				Validate: SNPValidateFunc(&Options{SNP: &SNPOptions{}, Getter: &stest.Getter{
+				Validate: verify.SNPValidateFunc(&verify.Options{SNP: &verify.SNPOptions{}, Getter: &stest.Getter{
 					Responses: map[string][]stest.GetResponse{
 						"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/2247cc90eae3eff72c8d4b4ea5fefb8914bd80ad093859d5d022332eba7c7abe59e13d525c941ede5541191d7149585d.binarypb": {{Error: fmt.Errorf("nope to that")}},
 					},
@@ -279,12 +279,12 @@ func TestSNPValidateFunc(t *testing.T) {
 			name: "required, getter success",
 			opt: &validate.CertEntryOption{
 				Kind: validate.CertEntryRequire,
-				Validate: SNPValidateFunc(&Options{
-					SNP:          &SNPOptions{},
+				Validate: verify.SNPValidateFunc(&verify.Options{
+					SNP:          &verify.SNPOptions{},
 					RootsOfTrust: rot,
 					Getter: &stest.Getter{
 						Responses: map[string][]stest.GetResponse{
-							"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/2247cc90eae3eff72c8d4b4ea5fefb8914bd80ad093859d5d022332eba7c7abe59e13d525c941ede5541191d7149585d.binarypb": {{Body: verifytest.FakeEndorsement(t)}},
+							"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/2247cc90eae3eff72c8d4b4ea5fefb8914bd80ad093859d5d022332eba7c7abe59e13d525c941ede5541191d7149585d.binarypb": {{Body: FakeEndorsement(t)}},
 						},
 					}}),
 			},
@@ -302,7 +302,7 @@ func TestSNPValidateFunc(t *testing.T) {
 	}
 
 	attestation.Report.Measurement = make([]byte, abi.MeasurementSize)
-	meas, err := hex.DecodeString(verifytest.CleanExampleMeasurement)
+	meas, err := hex.DecodeString(CleanExampleMeasurement)
 	if err != nil {
 		t.Fatal(err)
 	}

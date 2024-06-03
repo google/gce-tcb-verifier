@@ -15,9 +15,9 @@
 package gcetcbendorsement
 
 import (
+	"context"
 	"crypto/x509"
 	"fmt"
-	"context"
 	"time"
 
 	"github.com/google/gce-tcb-verifier/extract/extractsev"
@@ -69,8 +69,8 @@ func extractEndorsement(attestation *spb.Attestation, opts *SevValidateOptions) 
 		return nil, fmt.Errorf("could not extract endorsement")
 
 	}
-	obj := extractsev.GceTcbObjectName(sev.GCEUefiFamilyID, attestation.GetReport().GetMeasurement())
-	url := verify.GceTcbURL(obj)
+	obj := extractsev.GCETcbObjectName(sev.GCEUefiFamilyID, attestation.GetReport().GetMeasurement())
+	url := verify.GCETcbURL(obj)
 	bin, err := opts.Getter.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get endorsement: %v", err)

@@ -30,11 +30,13 @@ import (
 	"github.com/google/gce-tcb-verifier/eventlog"
 	exel "github.com/google/gce-tcb-verifier/extract/eventlog"
 	"github.com/google/gce-tcb-verifier/extract/extractsev"
+	"github.com/google/gce-tcb-verifier/extract/extracttdx"
 	"github.com/google/gce-tcb-verifier/sev"
 	"github.com/google/gce-tcb-verifier/verify"
 	"github.com/google/go-sev-guest/abi"
 	spb "github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/verify/trust"
+	tpb "github.com/google/go-tdx-guest/proto/tdx"
 	tpmpb "github.com/google/go-tpm-tools/proto/attest"
 	"go.uber.org/multierr"
 	"google.golang.org/protobuf/proto"
@@ -119,31 +121,26 @@ func (opts *Options) fromEventLog() ([]byte, error) {
 		return nil, err
 	}
 	evts := exel.RIMEventsFromEventLog(el)
-	// Raw data takes precedence over UEFI variables.
-	if raws, ok := evts[eventlog.RIMLocationRaw]; ok && len(raws) != 0 {
-		for _, evt := range raws {
-			if bytes.Equal(evt.FirmwareManufacturerStr.Data, opts.FirmwareManufacturer) {
-				return evt.RIMLocator.Data, nil
+	locopts := &exel.LocateOptions{
+		Getter:             opts.Getter,
+		UEFIVariableReader: opts.UEFIVariableReader,
+	}
+	for _, evts := range [][]*eventlog.SP800155Event3{
+		// Raw data takes precedence over UEFI variables.
+		evts[eventlog.RIMLocationRaw],
+		// UEFI variables take precedence over local device paths.
+		evts[eventlog.RIMLocationVariable],
+		// UEFI local device paths take precedence over URIs.
+		evts[eventlog.RIMLocationLocal],
+		// Finally reach out to the network.
+		evts[eventlog.RIMLocationURI]} {
+		for _, evt := range evts {
+			if len(opts.FirmwareManufacturer) == 0 || bytes.Equal(evt.FirmwareManufacturerStr.Data, opts.FirmwareManufacturer) {
+				return exel.Locate(evt.RIMLocatorType, evt.RIMLocator.Data, locopts)
 			}
 		}
 	}
-
-	// UEFI variables take precedence over URIs
-	if vars, ok := evts[eventlog.RIMLocationVariable]; ok && len(vars) != 0 {
-		for _, evt := range vars {
-			// No specific firmware manufacturer => get the first event.
-			if len(opts.FirmwareManufacturer) == 0 ||
-				bytes.Equal(evt.FirmwareManufacturerStr.Data, opts.FirmwareManufacturer) {
-				return exel.Locate(evt.RIMLocatorType, evt.RIMLocator.Data, &exel.LocateOptions{
-					Getter:             opts.Getter,
-					UEFIVariableReader: opts.UEFIVariableReader,
-				})
-			}
-		}
-	}
-
-	// If the RimLocatorType is URI, local UEFI device, or UEFI variable
-	return nil, fmt.Errorf("unimplemented")
+	return nil, fmt.Errorf("matching sp800155 firmware manufacturer %v not found", opts.FirmwareManufacturer)
 }
 
 func fromSevSnpAttestationProto(at *spb.Attestation) ([]byte, string, error) {
@@ -151,7 +148,11 @@ func fromSevSnpAttestationProto(at *spb.Attestation) ([]byte, string, error) {
 		return out, "", nil
 	}
 	meas := at.GetReport().GetMeasurement()
-	return nil, extractsev.GceTcbObjectName(sev.GCEUefiFamilyID, meas), nil
+	return nil, extractsev.GCETcbObjectName(sev.GCEUefiFamilyID, meas), nil
+}
+
+func fromTdxAttestationProto(at *tpb.QuoteV4) string {
+	return extracttdx.GCETcbObjectName(at.GetTdQuoteBody().GetMrTd())
 }
 
 // Attestation will try to deserialize a given attestation in any of the supported formats and
@@ -214,8 +215,9 @@ func (opts *Options) fromQuote(quote []byte) (endorsement []byte, objectName str
 	switch at := tpmat.TeeAttestation.(type) {
 	case *tpmpb.Attestation_SevSnpAttestation:
 		return fromSevSnpAttestationProto(at.SevSnpAttestation)
+	case *tpmpb.Attestation_TdxAttestation:
+		return nil, fromTdxAttestationProto(at.TdxAttestation), nil
 	}
-	// TODO: Otherwise try the TDX quote.
 	return nil, "", ErrUnknownFormat
 }
 
@@ -228,18 +230,18 @@ func Endorsement(opts *Options) (out []byte, err error) {
 	var quote, endorsement []byte
 	var objectName string
 	var evErr, quoteErr, internetErr error
-	// If the verbatim quote is provided, try that first.
-	endorsement, objectName, quoteErr = opts.fromQuote(opts.Quote)
-	if quoteErr == nil && len(endorsement) > 0 {
-		return endorsement, nil
-	}
-
-	// Then try the event logger.
+	// First try the event logger.
 	if opts.EventLogLocation != "" {
 		out, evErr = opts.fromEventLog()
 		if evErr == nil {
 			return out, nil
 		}
+	}
+
+	// If the verbatim quote is provided, try that next.
+	endorsement, objectName, quoteErr = opts.fromQuote(opts.Quote)
+	if quoteErr == nil && len(endorsement) > 0 {
+		return endorsement, nil
 	}
 
 	// Then try obtaining a quote for its auxblob or measurement if the objectName is not known.
@@ -262,7 +264,7 @@ func Endorsement(opts *Options) (out []byte, err error) {
 	if opts.Getter == nil {
 		internetErr = ErrGetterNil
 	} else {
-		endorsement, internetErr = opts.Getter.Get(verify.GceTcbURL(objectName))
+		endorsement, internetErr = opts.Getter.Get(verify.GCETcbURL(objectName))
 		if internetErr == nil {
 			return endorsement, nil
 		}

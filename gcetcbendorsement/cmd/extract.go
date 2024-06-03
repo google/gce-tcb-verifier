@@ -15,10 +15,11 @@
 package cmd
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 
 	"github.com/google/gce-tcb-verifier/extract"
+	exel "github.com/google/gce-tcb-verifier/extract/eventlog"
 	"github.com/spf13/cobra"
 )
 
@@ -31,8 +32,11 @@ const attestationFormatsUsage = `
 `
 
 type extractCommand struct {
-	output  string
-	content []byte
+	output       string
+	content      []byte
+	manufacturer string
+	eventlogpath string
+	efivarloc    string
 }
 type extractKeyType struct{}
 
@@ -63,15 +67,22 @@ func (c *extractCommand) runE(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	var reader exel.VariableReader
+	if backend.MakeEfiVariableReader != nil {
+		reader = backend.MakeEfiVariableReader(c.efivarloc)
+	}
 	out, cleanup, err := backend.IO.Create(c.output)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
 	endorsement, err := extract.Endorsement(&extract.Options{
-		Provider: backend.Provider,
-		Getter:   backend.Getter,
-		Quote:    c.content,
+		Provider:             backend.Provider,
+		Getter:               backend.Getter,
+		FirmwareManufacturer: []byte(c.manufacturer),
+		EventLogLocation:     c.eventlogpath,
+		UEFIVariableReader:   reader,
+		Quote:                c.content,
 	})
 	if err != nil {
 		return err
@@ -85,7 +96,7 @@ func (c *extractCommand) runE(cmd *cobra.Command, args []string) error {
 func makeExtract(ctx0 context.Context) *cobra.Command {
 	e := &extractCommand{}
 	cmd := &cobra.Command{
-		Use: "extract [PATH] [-out=PATH]",
+		Use: "extract [options] [PATH]",
 		Long: `Outputs the GCE endorsement for the measurement in an attestation report.
 
 If PATH is not provided, extract expects to be run in a TEE to extract from the context.
@@ -97,6 +108,9 @@ If PATH is provided it must be to an attestation in one of the following formats
 	ctx := context.WithValue(ctx0, extractKey, e)
 	cmd.Flags().StringVar(&e.output, "out", "endorsement.binarypb",
 		"The output destination for the extracted endorsement. Default endorsement.binarypb")
+	cmd.Flags().StringVar(&e.eventlogpath, "eventlog", "/sys/kernel/security/tpm0/binary_bios_measurements", "The path to the bios boot event log")
+	cmd.Flags().StringVar(&e.manufacturer, "firmware_manufacturer", "Google, Inc.", "The firmware manufacturer string to search for in SP800155 events.")
+	cmd.Flags().StringVar(&e.efivarloc, "efivarfs", "/sys/firmware/efi/efivars", "The efivarfs mount location.")
 	cmd.SetContext(ctx)
 	return cmd
 }

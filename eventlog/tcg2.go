@@ -19,6 +19,7 @@ package eventlog
 import (
 	"bytes"
 	"fmt"
+	"io"
 )
 
 const (
@@ -97,8 +98,13 @@ func (evt *SP800155Event3) UnmarshalFromBytes(data []byte) error {
 	if err := littleRead(r, "PlatformCertLocator", &evt.PlatformCertLocator); err != nil {
 		return err
 	}
-	if r.Len() > 0 {
-		return fmt.Errorf("%d bytes remaining of SP800155Event3. Want EOF", r.Len())
+	// Padding zeros are allowed, given how HOBs have to be padded to 8-bytes, and the event size
+	// that edk2 reports is the guid data length as padded for the HOB.
+	rest, _ := io.ReadAll(r)
+	for _, r := range rest {
+		if r != 0 {
+			return fmt.Errorf("%d bytes remaining of SP800155Event3 not all zero", len(rest))
+		}
 	}
 	return nil
 }

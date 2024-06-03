@@ -101,7 +101,7 @@ func TestFromCertTable(t *testing.T) {
 	}
 }
 
-func TestGceTcbObjectName(t *testing.T) {
+func TestGCETcbObjectName(t *testing.T) {
 	tcs := []struct {
 		name        string
 		familyID    string
@@ -129,9 +129,9 @@ func TestGceTcbObjectName(t *testing.T) {
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			got := GceTcbObjectName(tc.familyID, tc.measurement)
+			got := GCETcbObjectName(tc.familyID, tc.measurement)
 			if diff := cmp.Diff(got, tc.want); diff != "" {
-				t.Fatalf("GceTcbObjectName(%v, %v) returned an unexpected diff (-got +want): %v",
+				t.Fatalf("GCETcbObjectName(%v, %v) returned an unexpected diff (-got +want): %v",
 					tc.familyID, tc.measurement, diff)
 			}
 		})

@@ -48,8 +48,8 @@ const gcsBaseURL = "https://storage.googleapis.com"
 // SNPOptions are SEV-SNP technology-specific validation options to check against the endorsement.
 type SNPOptions struct {
 	// measurement is an optional SEV-SNP measurement to check against the endorsement's list of
-	// measurements. It is not exported since it is only populated by a launch endorsement.
-	measurement []byte
+	// measurements.
+	Measurement []byte
 	// ExpectedLaunchVMSAs is an optional (0 ignored) number of expected VMSAs to have launched with.
 	// The effect is that the measurement is compared against only the measurement computed for this
 	// VMSA count. It is an error for ExpectedLaunchVMSAs to be non-zero while Measurement is nil.
@@ -62,8 +62,8 @@ type HTTPSGetter interface {
 	Get(url string) ([]byte, error)
 }
 
-// GceTcbURL returns the URL to the named object within the gce-tcb-integrity storage bucket.
-func GceTcbURL(objectName string) string {
+// GCETcbURL returns the URL to the named object within the gce-tcb-integrity storage bucket.
+func GCETcbURL(objectName string) string {
 	return fmt.Sprintf("%s/gce_tcb_integrity/%s", gcsBaseURL, objectName)
 }
 
@@ -102,14 +102,14 @@ func SNPFamilyValidateFunc(familyID string, opts *Options) func(*spb.Attestation
 			if opts.Getter == nil {
 				return fmt.Errorf("endorsement getter is nil")
 			}
-			blob, err := opts.Getter.Get(GceTcbURL(extractsev.GceTcbObjectName(familyID, measurement)))
+			blob, err := opts.Getter.Get(GCETcbURL(extractsev.GCETcbObjectName(familyID, measurement)))
 			if err != nil {
 				return fmt.Errorf("could not fetch endorsement: %v", err)
 			}
 			serializedEndorsement = blob
 
 		}
-		opts.SNP.measurement = measurement
+		opts.SNP.Measurement = measurement
 		return Endorsement(serializedEndorsement, opts)
 	}
 }
@@ -182,22 +182,22 @@ func SNP(golden *epb.VMGoldenMeasurement, opts *SNPOptions) error {
 		if !ok {
 			return fmt.Errorf("no golden measurement for %d launch VMSAs", opts.ExpectedLaunchVMSAs)
 		}
-		if !bytes.Equal(measure, opts.measurement) {
+		if !bytes.Equal(measure, opts.Measurement) {
 			return fmt.Errorf("given measure %s does not match measurement for %d VMSAs %s",
-				hex.EncodeToString(measure), opts.ExpectedLaunchVMSAs, hex.EncodeToString(opts.measurement))
+				hex.EncodeToString(measure), opts.ExpectedLaunchVMSAs, hex.EncodeToString(opts.Measurement))
 		}
-	} else if opts.measurement != nil {
+	} else if opts.Measurement != nil {
 		// Check the measurement against any of the launch VMSA measurements.
 		var found bool
 		for _, measure := range snp.Measurements {
-			if bytes.Equal(measure, opts.measurement) {
+			if bytes.Equal(measure, opts.Measurement) {
 				found = true
 				break
 			}
 		}
 		if !found {
 			return fmt.Errorf("measure %s does not match any golden measurement",
-				hex.EncodeToString(opts.measurement))
+				hex.EncodeToString(opts.Measurement))
 		}
 	}
 	return nil
