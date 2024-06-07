@@ -42,8 +42,6 @@ var (
 		'F', 0, 'i', 0, 'r', 0, 'm', 0, 'w', 0, 'a', 0, 'r', 0, 'e', 0,
 		'R', 0, 'I', 0, 'M', 0, 0, 0,
 	}
-
-	sp800155guid = uuid.MustParse(oabi.Tcg800155PlatformIDEventHobGUID)
 )
 
 func googleSp800155Event(rimGUID eventlog.EfiGUID, locType uint32, loc []byte) *eventlog.SP800155Event3 {
@@ -59,24 +57,18 @@ func googleSp800155Event(rimGUID eventlog.EfiGUID, locType uint32, loc []byte) *
 	}
 }
 
-func spHOB(sp *eventlog.SP800155Event3) []byte {
-	evt, _ := sp.MarshalToBytes()
-	// Impossible to exceed a page with the given event.
-	hob, _ := oabi.CreateEFIHOBGUID(sp800155guid, evt)
-	evtb := bytes.NewBuffer(nil)
-	hob.WriteTo(evtb)
-	return evtb.Bytes()
+func varEvent(rimGUID eventlog.EfiGUID) []byte {
+	result, _ := googleSp800155Event(rimGUID, eventlog.RIMLocationVariable, rimVar).MarshalToBytes()
+	return result
 }
 
-func varEventHOB(rimGUID eventlog.EfiGUID) []byte {
-	return spHOB(googleSp800155Event(rimGUID, eventlog.RIMLocationVariable, rimVar))
-}
-
-func uriEventHOB(rimGUID eventlog.EfiGUID, digest []byte) []byte {
+func uriEvent(rimGUID eventlog.EfiGUID, digest []byte) []byte {
 	// This will need to not be hardcoded when we're signing multiple builds at a time, but for now
 	// this works.
 	obj := fmt.Sprintf("ovmf_x64_csm/%s.fd.signed", hex.EncodeToString(digest))
-	return spHOB(googleSp800155Event(rimGUID, eventlog.RIMLocationURI, []byte(verify.GCETcbURL(obj))))
+	result, _ := googleSp800155Event(rimGUID, eventlog.RIMLocationURI,
+		[]byte(verify.GCETcbURL(obj))).MarshalToBytes()
+	return result
 }
 
 // makeEvents returns the boot service UEFI variable contents the firmware will use to populate the
@@ -91,7 +83,10 @@ func makeEvents(random io.Reader, endorsement *epb.VMLaunchEndorsement) ([]byte,
 	}
 	rimGUID := eventlog.EfiGUID{UUID: rimUUID}
 	// We create 2 events: point to the uefi variable and point to the URI.
-	result := append(varEventHOB(rimGUID), uriEventHOB(rimGUID, golden.GetDigest())...)
+	events := bytes.NewBuffer(nil)
+	(&eventlog.Uint32SizedArray{Data: varEvent(rimGUID)}).Marshal(events)
+	(&eventlog.Uint32SizedArray{Data: uriEvent(rimGUID, golden.GetDigest())}).Marshal(events)
+	result := events.Bytes()
 	if len(result) > oabi.PageSize {
 		return nil, fmt.Errorf("SP800155 events too large: %d", len(result))
 	}

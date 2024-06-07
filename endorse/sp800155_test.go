@@ -64,14 +64,9 @@ func TestMakeEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("makeEvents(%v) failed: %v", e, err)
 	}
-	tcg := uuid.MustParse(oabi.Tcg800155PlatformIDEventHobGUID)
-	var tcgEFIGUID [16]byte
-	oabi.PutUUID(tcgEFIGUID[:], tcg)
-	varHob := combine([]byte{0x04, 0x00, 0xb0, 0x00, 0x00, 0x00, 0x00, 0x00}, // HOB generic header
-		tcgEFIGUID[:],
-		[]byte("SP800-155 Event3"),
+	varEvt := combine([]byte{0x92, 0, 0, 0}, []byte("SP800-155 Event3"),
 		binary.LittleEndian.AppendUint32(nil, 11129), // PlatformManufacturerID
-		rimEFIGUID,                                   // ReferenceManifestGuid
+		rimEFIGUID, // ReferenceManifestGuid
 		append([]byte{byte(len(googleManufacturer))}, []byte(googleManufacturer)...), // PlatformManufacturerStr
 		append([]byte{byte(len(platformModel))}, []byte(platformModel)...),           // PlatformModel
 		[]byte{0}, // PlatformVersion
@@ -84,13 +79,13 @@ func TestMakeEvents(t *testing.T) {
 		[]byte{0, 0, 0, 0}, // Platform cert locator type
 		[]byte{0, 0, 0, 0}, // Platform cert length
 	)
-	if len(varHob) != 170 {
-		t.Errorf("varHob = %v, want length 170", varHob)
+	if len(varEvt) != 150 {
+		t.Errorf("varEvt = %v (size %d), want length 150", varEvt, len(varEvt))
 	}
-	if diff := cmp.Diff(varHob, blob[:170]); diff != "" {
-		t.Errorf("makeEvents(%v) = %v..., want %v...: diff (-want, +got) %s", e, blob[:192], varHob, diff)
+	if diff := cmp.Diff(varEvt, blob[:150]); diff != "" {
+		t.Errorf("makeEvents(%v) = %v..., want %v...: diff (-want, +got) %s", e, blob[:150], varEvt, diff)
 	}
-	if len(blob) != 480 {
-		t.Errorf("makeEvents(%v) = %v, want length 480", e, len(blob))
+	if len(blob) != 428 {
+		t.Errorf("makeEvents(%v) = %v, want length 428", e, len(blob))
 	}
 }
