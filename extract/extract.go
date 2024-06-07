@@ -59,7 +59,7 @@ var (
 const (
 	// GCEFirmwareManufacturer is the expected FirmwareManufacturer value in an SP800-155 Event3 event
 	// on a GCE VM.
-	GCEFirmwareManufacturer = "GCE"
+	GCEFirmwareManufacturer = "Google, Inc."
 )
 
 // QuoteProvider provides a raw quote within a trusted execution environment.

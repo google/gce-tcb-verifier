@@ -109,7 +109,7 @@ If PATH is provided it must be to an attestation in one of the following formats
 	cmd.Flags().StringVar(&e.output, "out", "endorsement.binarypb",
 		"The output destination for the extracted endorsement. Default endorsement.binarypb")
 	cmd.Flags().StringVar(&e.eventlogpath, "eventlog", "/sys/kernel/security/tpm0/binary_bios_measurements", "The path to the bios boot event log")
-	cmd.Flags().StringVar(&e.manufacturer, "firmware_manufacturer", "Google, Inc.", "The firmware manufacturer string to search for in SP800155 events.")
+	cmd.Flags().StringVar(&e.manufacturer, "firmware_manufacturer", extract.GCEFirmwareManufacturer, "The firmware manufacturer string to search for in SP800155 events.")
 	cmd.Flags().StringVar(&e.efivarloc, "efivarfs", "/sys/firmware/efi/efivars", "The efivarfs mount location.")
 	cmd.SetContext(ctx)
 	return cmd

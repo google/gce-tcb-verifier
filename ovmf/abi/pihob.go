@@ -32,7 +32,7 @@ const (
 	// SizeofHOBGUID is the size of the GUID HOB header prior to associated data.
 	SizeofHOBGUID = SizeofHOBGenericHeader + 16
 	// MaxGUIDHOBDataSize is the maximum size of an EFI_HOB_GUID_TYPE's associated data.
-	MaxGUIDHOBDataSize = 0x1000 - SizeofHOBGUID
+	MaxGUIDHOBDataSize = 0x10000 - SizeofHOBGUID
 )
 
 // EFIResourceType is an enum type for resource descriptors.
