@@ -64,7 +64,8 @@ func TestMakeEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("makeEvents(%v) failed: %v", e, err)
 	}
-	varEvt := combine([]byte{0x92, 0, 0, 0}, []byte("SP800-155 Event3"),
+	varEvt := combine([]byte{0x92, 0x00}, // Event length as little endian uint16
+		[]byte("SP800-155 Event3"),
 		binary.LittleEndian.AppendUint32(nil, 11129), // PlatformManufacturerID
 		rimEFIGUID, // ReferenceManifestGuid
 		append([]byte{byte(len(googleManufacturer))}, []byte(googleManufacturer)...), // PlatformManufacturerStr
@@ -79,13 +80,15 @@ func TestMakeEvents(t *testing.T) {
 		[]byte{0, 0, 0, 0}, // Platform cert locator type
 		[]byte{0, 0, 0, 0}, // Platform cert length
 	)
-	if len(varEvt) != 150 {
-		t.Errorf("varEvt = %v (size %d), want length 150", varEvt, len(varEvt))
+	wantVarLen := 148
+	if len(varEvt) != wantVarLen {
+		t.Errorf("varEvt = %v, want length %d", varEvt, wantVarLen)
 	}
-	if diff := cmp.Diff(varEvt, blob[:150]); diff != "" {
-		t.Errorf("makeEvents(%v) = %v..., want %v...: diff (-want, +got) %s", e, blob[:150], varEvt, diff)
+	if diff := cmp.Diff(varEvt, blob[:wantVarLen]); diff != "" {
+		t.Errorf("makeEvents(%v) = %v..., want %v...: diff (-want, +got) %s", e, blob[:wantVarLen], varEvt, diff)
 	}
-	if len(blob) != 428 {
-		t.Errorf("makeEvents(%v) = %v, want length 428", e, len(blob))
+	wantBlobLen := 276 + wantVarLen
+	if len(blob) != wantBlobLen {
+		t.Errorf("makeEvents(%v) = %v, want length %d", e, len(blob), wantBlobLen)
 	}
 }

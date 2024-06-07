@@ -15,13 +15,12 @@
 package endorse
 
 import (
-	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
 
 	"github.com/google/gce-tcb-verifier/eventlog"
-	oabi "github.com/google/gce-tcb-verifier/ovmf/abi"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
 	"github.com/google/gce-tcb-verifier/verify"
 	"github.com/google/uuid"
@@ -57,18 +56,29 @@ func googleSp800155Event(rimGUID eventlog.EfiGUID, locType uint32, loc []byte) *
 	}
 }
 
-func varEvent(rimGUID eventlog.EfiGUID) []byte {
-	result, _ := googleSp800155Event(rimGUID, eventlog.RIMLocationVariable, rimVar).MarshalToBytes()
-	return result
+// An SP800155 event is stored in a HOB, which has a maximum size of UINT16 bytes including headers.
+func marshalUint16Str(data []byte) []byte {
+	return append(binary.LittleEndian.AppendUint16(nil, uint16(len(data))), data...)
 }
 
-func uriEvent(rimGUID eventlog.EfiGUID, digest []byte) []byte {
+func varEvent(rimGUID eventlog.EfiGUID) ([]byte, error) {
+	result, err := googleSp800155Event(rimGUID, eventlog.RIMLocationVariable, rimVar).MarshalToBytes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal UEFI variable SP800155 event: %v", err)
+	}
+	return marshalUint16Str(result), nil
+}
+
+func uriEvent(rimGUID eventlog.EfiGUID, digest []byte) ([]byte, error) {
 	// This will need to not be hardcoded when we're signing multiple builds at a time, but for now
 	// this works.
 	obj := fmt.Sprintf("ovmf_x64_csm/%s.fd.signed", hex.EncodeToString(digest))
-	result, _ := googleSp800155Event(rimGUID, eventlog.RIMLocationURI,
+	result, err := googleSp800155Event(rimGUID, eventlog.RIMLocationURI,
 		[]byte(verify.GCETcbURL(obj))).MarshalToBytes()
-	return result
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal URI SP800155 event: %v", err)
+	}
+	return marshalUint16Str(result), nil
 }
 
 // makeEvents returns the boot service UEFI variable contents the firmware will use to populate the
@@ -83,12 +93,13 @@ func makeEvents(random io.Reader, endorsement *epb.VMLaunchEndorsement) ([]byte,
 	}
 	rimGUID := eventlog.EfiGUID{UUID: rimUUID}
 	// We create 2 events: point to the uefi variable and point to the URI.
-	events := bytes.NewBuffer(nil)
-	(&eventlog.Uint32SizedArray{Data: varEvent(rimGUID)}).Marshal(events)
-	(&eventlog.Uint32SizedArray{Data: uriEvent(rimGUID, golden.GetDigest())}).Marshal(events)
-	result := events.Bytes()
-	if len(result) > oabi.PageSize {
-		return nil, fmt.Errorf("SP800155 events too large: %d", len(result))
+	varEvt, err := varEvent(rimGUID)
+	if err != nil {
+		return nil, err
 	}
-	return result, nil
+	uriEvt, err := uriEvent(rimGUID, golden.GetDigest())
+	if err != nil {
+		return nil, err
+	}
+	return append(varEvt, uriEvt...), nil
 }
