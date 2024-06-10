@@ -23,9 +23,7 @@ import (
 	"github.com/google/gce-tcb-verifier/extract"
 	exel "github.com/google/gce-tcb-verifier/extract/eventlog"
 	"github.com/google/gce-tcb-verifier/verify"
-	"github.com/google/go-sev-guest/client"
 	"github.com/google/go-sev-guest/verify/trust"
-	"github.com/google/logger"
 	"github.com/spf13/cobra"
 )
 
@@ -72,12 +70,8 @@ func MakeRoot(ctx0 context.Context) *cobra.Command {
 }
 
 func init() {
-	qp, err := client.GetQuoteProvider()
-	if err != nil {
-		logger.Fatal(err)
-	}
 	RootCmd = MakeRoot(context.WithValue(context.Background(), backendKey, &Backend{
-		Provider: qp,
+		Provider: &extract.ConfigfsTsmQuoteProvider{},
 		Getter:   trust.DefaultHTTPSGetter(),
 		MakeEfiVariableReader: func(path string) exel.VariableReader {
 			return exel.MakeEfiVarFSReader(path)

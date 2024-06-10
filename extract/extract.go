@@ -36,6 +36,7 @@ import (
 	"github.com/google/go-sev-guest/abi"
 	spb "github.com/google/go-sev-guest/proto/sevsnp"
 	"github.com/google/go-sev-guest/verify/trust"
+	tabi "github.com/google/go-tdx-guest/abi"
 	tpb "github.com/google/go-tdx-guest/proto/tdx"
 	tpmpb "github.com/google/go-tpm-tools/proto/attest"
 	"go.uber.org/multierr"
@@ -59,7 +60,7 @@ var (
 const (
 	// GCEFirmwareManufacturer is the expected FirmwareManufacturer value in an SP800-155 Event3 event
 	// on a GCE VM.
-	GCEFirmwareManufacturer = "GCE"
+	GCEFirmwareManufacturer = "Google, Inc."
 )
 
 // QuoteProvider provides a raw quote within a trusted execution environment.
@@ -180,7 +181,11 @@ func Attestation(quote []byte) (*tpmpb.Attestation, error) {
 		return tpmat, nil
 	}
 
-	// TODO: Try the TDX quote proto.
+	tdx := &tpb.QuoteV4{}
+	if err := proto.Unmarshal(quote, tdx); err == nil {
+		tpmat.TeeAttestation = &tpmpb.Attestation_TdxAttestation{TdxAttestation: tdx}
+		return tpmat, nil
+	}
 
 	// If hex- or base64-encoded, decode it.
 	if decoded, err := hex.DecodeString(string(quote)); err == nil {
@@ -202,6 +207,17 @@ func Attestation(quote []byte) (*tpmpb.Attestation, error) {
 		sev.CertificateChain = certs.Proto()
 		tpmat.TeeAttestation = &tpmpb.Attestation_SevSnpAttestation{SevSnpAttestation: sev}
 		return tpmat, nil
+	}
+
+	// Attempt to decode as a raw TDX quote.
+	if tdxquote, err := tabi.QuoteToProto(quote); err == nil {
+		switch tq := tdxquote.(type) {
+		case *tpb.QuoteV4:
+			tpmat.TeeAttestation = &tpmpb.Attestation_TdxAttestation{TdxAttestation: tq}
+			return tpmat, nil
+		default:
+			return nil, fmt.Errorf("unknown TDX attestation format %T", tdxquote)
+		}
 	}
 	return nil, ErrUnknownFormat
 }

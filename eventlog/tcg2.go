@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+
+	oabi "github.com/google/gce-tcb-verifier/ovmf/abi"
 )
 
 const (
@@ -148,5 +150,9 @@ func (evt *SP800155Event3) MarshalToBytes() ([]byte, error) {
 	if err := littleWrite(w, "PlatformCertLocator", &evt.PlatformCertLocator); err != nil {
 		return nil, err
 	}
-	return w.Bytes(), nil
+	result := w.Bytes()
+	if len(result) > oabi.MaxGUIDHOBDataSize {
+		return nil, fmt.Errorf("event is too large for an EFI_HOB_GUID_TYPE: %d bytes", len(result))
+	}
+	return result, nil
 }
