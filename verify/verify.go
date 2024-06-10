@@ -86,9 +86,7 @@ func SNPValidateFunc(opts *Options) func(*spb.Attestation, []byte) error {
 // SEV-SNP attestation report given an expected familyID.
 func SNPFamilyValidateFunc(familyID string, opts *Options) func(*spb.Attestation, []byte) error {
 	if opts.SNP == nil {
-		return func(*spb.Attestation, []byte) error {
-			return nil
-		}
+		opts.SNP = &SNPOptions{}
 	}
 	return func(attestation *spb.Attestation, serializedEndorsement []byte) error {
 		if attestation == nil {
