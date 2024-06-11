@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/gce-tcb-verifier/cmd"
 	"github.com/google/gce-tcb-verifier/keys"
+	"github.com/google/gce-tcb-verifier/rotate"
 	"github.com/google/gce-tcb-verifier/sign/memca"
 	"github.com/google/gce-tcb-verifier/sign/nonprod"
 	"github.com/google/gce-tcb-verifier/testing/devkeys"
@@ -85,10 +86,11 @@ func TestWipeout(t *testing.T) {
 	ctx0 := context.Background()
 	keyDir := t.TempDir()
 	m, ctx1 := readyManager(ctx0, t, []string{"--key_dir", keyDir})
-	ctx, err := cmd.ComposeInitContext(ctx1, m, memca.Create())
+	ctx2, err := cmd.ComposeInitContext(ctx1, m, memca.Create())
 	if err != nil {
 		t.Fatalf("ComposeInitContext(_, %v, memca) = %v, want nil", m, err)
 	}
+	ctx := rotate.NewWipeoutContext(ctx2, &rotate.WipeoutContext{CA: true, Keys: true})
 	testkm.Wipeout(ctx, t)
 	if _, err := os.Stat(path.Join(keyDir, "root.pem")); err == nil {
 		t.Fatalf("localkm Wipeout() did not delete root.pem")

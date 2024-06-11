@@ -34,6 +34,8 @@ var (
 // query if the operation should be permitted.
 type WipeoutContext struct {
 	Force bool
+	CA    bool
+	Keys  bool
 }
 
 type wipeoutKeyType struct{}
@@ -60,16 +62,24 @@ func Wipeout(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if c.CA == nil {
-		return keys.ErrNoCertificateAuthority
+	wc, err := FromWipeoutContext(ctx)
+	if err != nil {
+		return err
 	}
-	if err := c.CA.Wipeout(ctx); err != nil {
-		return fmt.Errorf("could not wipeout certificate authority: %w", err)
+	if wc.CA {
+		if c.CA == nil {
+			return keys.ErrNoCertificateAuthority
+		}
+		if err := c.CA.Wipeout(ctx); err != nil {
+			return fmt.Errorf("could not wipeout certificate authority: %w", err)
+		}
+		output.Infof(ctx, "Certificate authority wipeout completed.")
 	}
-	output.Infof(ctx, "Certificate authority wipeout completed.")
-	if err := c.Manager.Wipeout(ctx); err != nil {
-		return fmt.Errorf("could not wipeout keys: %w", err)
+	if wc.Keys {
+		if err := c.Manager.Wipeout(ctx); err != nil {
+			return fmt.Errorf("could not wipeout keys: %w", err)
+		}
+		output.Infof(ctx, "Key manager wipeout completed.")
 	}
-	output.Infof(ctx, "Key manager wipeout completed.")
 	return nil
 }

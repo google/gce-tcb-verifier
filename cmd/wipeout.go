@@ -35,10 +35,29 @@ func wipeoutBase() CommandComponent {
 func makeWipeoutCmd(ctx context.Context, app *AppComponents) *cobra.Command {
 	cmp := Compose(app.Global, wipeoutBase(), app.Wipeout)
 	cmd := &cobra.Command{
-		Use:               "wipeout [flags]",
-		Long:              `Destroys all managed keys and certificates.`,
+		Use: "wipeout [flags] ['ca'|'keys']",
+		Long: `Destroys all managed keys and certificates.
+
+If given literal arguments 'ca' or 'keys', then just wipes out certs or keys respectively.
+`,
 		PersistentPreRunE: cmp.PersistentPreRunE,
-		RunE:              ComposeRun(cmp, rotate.Wipeout),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx, err := cmp.InitContext(cmd.Context())
+			if err != nil {
+				return err
+			}
+			wc, err := rotate.FromWipeoutContext(ctx)
+			if err != nil {
+				return err
+			}
+			if len(args) == 0 || args[0] == "ca" {
+				wc.CA = true
+			}
+			if len(args) == 0 || args[0] == "keys" {
+				wc.Keys = true
+			}
+			return rotate.Wipeout(ctx)
+		},
 	}
 	cmd.SetContext(ctx)
 	cmp.AddFlags(cmd)
