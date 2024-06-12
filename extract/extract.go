@@ -75,7 +75,7 @@ type QuoteProvider interface {
 type Options struct {
 	Provider             QuoteProvider
 	Getter               trust.HTTPSGetter
-	FirmwareManufacturer []byte
+	FirmwareManufacturer string
 	EventLogLocation     string
 	UEFIVariableReader   exel.VariableReader
 	// Quote is any of the supported formats. If empty, the Provider will be used to get a quote.
@@ -88,7 +88,7 @@ func DefaultOptions() *Options {
 	return &Options{
 		// Provider:             &client.TEEQuoteProvider{},
 		Getter:               lopts.Getter,
-		FirmwareManufacturer: []byte(GCEFirmwareManufacturer),
+		FirmwareManufacturer: GCEFirmwareManufacturer,
 		EventLogLocation:     "/sys/kernel/security/tpm0/binary_bios_measurements",
 		UEFIVariableReader:   lopts.UEFIVariableReader,
 		Quote:                []byte{},
@@ -136,7 +136,7 @@ func (opts *Options) fromEventLog() ([]byte, error) {
 		// Finally reach out to the network.
 		evts[eventlog.RIMLocationURI]} {
 		for _, evt := range evts {
-			if len(opts.FirmwareManufacturer) == 0 || bytes.Equal(evt.FirmwareManufacturerStr.Data, opts.FirmwareManufacturer) {
+			if len(opts.FirmwareManufacturer) == 0 || evt.FirmwareManufacturerStr.Data == opts.FirmwareManufacturer {
 				return exel.Locate(evt.RIMLocatorType, evt.RIMLocator.Data, locopts)
 			}
 		}

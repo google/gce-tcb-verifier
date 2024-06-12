@@ -15,7 +15,6 @@
 package endorse
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -33,6 +32,8 @@ const (
 	googleID           = 11129          // IANA PEN
 	googleManufacturer = "Google, Inc." // IANA PEN text
 	platformModel      = "Google Compute Engine"
+	platformVersion    = ""    // Unknown
+	firmwareVersion    = "2.7" // EFI_SYSTEM_TABLE_REVISION
 )
 
 var (
@@ -47,18 +48,15 @@ func googleSp800155Event(rimGUID eventlog.EfiGUID, locType uint32, loc []byte) *
 	return &eventlog.SP800155Event3{
 		PlatformManufacturerID:  11129,
 		ReferenceManifestGUID:   rimGUID,
-		PlatformManufacturerStr: eventlog.ByteSizedArray{Data: []byte(googleManufacturer)},
-		PlatformModel:           eventlog.ByteSizedArray{Data: []byte(platformModel)},
-		FirmwareManufacturerStr: eventlog.ByteSizedArray{Data: []byte(googleManufacturer)},
+		PlatformManufacturerStr: eventlog.ByteSizedCStr{Data: googleManufacturer},
+		PlatformModel:           eventlog.ByteSizedCStr{Data: platformModel},
+		PlatformVersion:         eventlog.ByteSizedCStr{Data: platformVersion},
+		FirmwareManufacturerStr: eventlog.ByteSizedCStr{Data: googleManufacturer},
 		FirmwareManufacturerID:  11129,
+		FirmwareVersion:         eventlog.ByteSizedCStr{Data: firmwareVersion},
 		RIMLocatorType:          locType,
 		RIMLocator:              eventlog.Uint32SizedArray{Data: loc},
 	}
-}
-
-// An SP800155 event is stored in a HOB, which has a maximum size of UINT16 bytes including headers.
-func marshalUint16Str(data []byte) []byte {
-	return append(binary.LittleEndian.AppendUint16(nil, uint16(len(data))), data...)
 }
 
 func varEvent(rimGUID eventlog.EfiGUID) ([]byte, error) {
@@ -66,7 +64,7 @@ func varEvent(rimGUID eventlog.EfiGUID) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal UEFI variable SP800155 event: %v", err)
 	}
-	return marshalUint16Str(result), nil
+	return result, nil
 }
 
 func uriEvent(rimGUID eventlog.EfiGUID, digest []byte) ([]byte, error) {
@@ -78,7 +76,7 @@ func uriEvent(rimGUID eventlog.EfiGUID, digest []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal URI SP800155 event: %v", err)
 	}
-	return marshalUint16Str(result), nil
+	return result, nil
 }
 
 // makeEvents returns the boot service UEFI variable contents the firmware will use to populate the

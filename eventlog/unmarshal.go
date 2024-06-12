@@ -36,22 +36,30 @@ type Unmarshallable interface {
 	Unmarshal(io.Reader) error
 }
 
-// ByteSizedArray represents an array of bytes no longer than 255 entries that is serialized first
+// ByteSizedCStr represents an array of bytes no longer than 255 entries that is serialized first
 // with a single byte specifying the array size.
-type ByteSizedArray struct {
-	Data []byte
+type ByteSizedCStr struct {
+	Data string
 }
 
 // Unmarshal reads an array of bytes no longer than 255 entries that is serialized first
 // with a single byte specifying the array size.
-func (b *ByteSizedArray) Unmarshal(r io.Reader) error {
+func (b *ByteSizedCStr) Unmarshal(r io.Reader) error {
 	size := byte(0)
-	return readSizedArray(r, &size, &b.Data)
+	var data []byte
+	if err := readSizedArray(r, &size, &data); err != nil {
+		return err
+	}
+	if len(data) == 0 || data[len(data)-1] != 0 {
+		return fmt.Errorf("expected 0-terminator for ByteSizedCStr: %v", data)
+	}
+	b.Data = string(data[:len(data)-1])
+	return nil
 }
 
-// Create creates a new ByteSizedArray.
-func (*ByteSizedArray) Create() Serializable {
-	return &ByteSizedArray{}
+// Create creates a new ByteSizedCStr.
+func (*ByteSizedCStr) Create() Serializable {
+	return &ByteSizedCStr{}
 }
 
 // Uint32SizedArray represents an array of bytes no longer than 2^32 - 1 entries that is serialized
@@ -75,8 +83,14 @@ func (b *Uint32SizedArray) Unmarshal(r io.Reader) error {
 func makeSized[T any](size any) ([]T, error) {
 	switch s := size.(type) {
 	case *byte:
+		if *s == 0 {
+			return nil, nil
+		}
 		return make([]T, *s), nil
 	case *uint32:
+		if *s == 0 {
+			return nil, nil
+		}
 		return make([]T, *s), nil
 	default:
 		return nil, fmt.Errorf("unsupported array size type %T", size)
@@ -99,6 +113,10 @@ func (d *Uint32SizedArrayT[T]) Unmarshal(r io.Reader) error {
 	size := uint32(0)
 	if err := binary.Read(r, binary.LittleEndian, &size); err != nil {
 		return fmt.Errorf("failed to read Uint32SizedArrayT %T sized %d: %v", []T{}, size, err)
+	}
+	if size == 0 {
+		d.Array = nil
+		return nil
 	}
 	d.Array = make([]T, size)
 	for i := range d.Array {

@@ -49,12 +49,12 @@ var (
 type SP800155Event3 struct {
 	PlatformManufacturerID  uint32
 	ReferenceManifestGUID   EfiGUID
-	PlatformManufacturerStr ByteSizedArray
-	PlatformModel           ByteSizedArray
-	PlatformVersion         ByteSizedArray
-	FirmwareManufacturerStr ByteSizedArray
+	PlatformManufacturerStr ByteSizedCStr
+	PlatformModel           ByteSizedCStr
+	PlatformVersion         ByteSizedCStr
+	FirmwareManufacturerStr ByteSizedCStr
 	FirmwareManufacturerID  uint32
-	FirmwareVersion         ByteSizedArray
+	FirmwareVersion         ByteSizedCStr
 	RIMLocatorType          uint32
 	RIMLocator              Uint32SizedArray
 	PlatformCertLocatorType uint32
