@@ -101,10 +101,11 @@ func TestFakeKms(t *testing.T) {
 	})
 	rotatedKeyVersionName := m.FullKeyName("test-signing-key") + "/cryptoKeyVersions/2"
 	testkm.Rotate(rctx, t, rotatedKeyVersionName)
-	if err := rotate.Wipeout(ctx1); err != nil {
+	ctx2 := rotate.NewWipeoutContext(ctx1, &rotate.WipeoutContext{CA: true, Keys: true})
+	if err := rotate.Wipeout(ctx2); err != nil {
 		t.Errorf("rotate.Wipeout() = %v, want nil", err)
 	}
-	testkm.PostWipeoutProperties(ctx1, t, &testkm.Options{
+	testkm.PostWipeoutProperties(ctx2, t, &testkm.Options{
 		RootKeyVersionName:           m.FullKeyName("test-root-key") + "/cryptoKeyVersions/1",
 		PrimarySigningKeyVersionName: rotatedKeyVersionName,
 	})

@@ -630,7 +630,7 @@ func TestWipeoutAfterBootstrap(t *testing.T) {
 		rootVersion2: {Name: rootVersion2, State: kmspb.CryptoKeyVersion_DESTROY_SCHEDULED},
 		rootVersion3: {Name: rootVersion3, State: kmspb.CryptoKeyVersion_DESTROYED},
 	}
-	if err := rotate.Wipeout(b.ctx); err != nil {
+	if err := rotate.Wipeout(rotate.NewWipeoutContext(b.ctx, &rotate.WipeoutContext{CA: true, Keys: true})); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.ca.Storage.Reader(b.ctx, "test", gcsca.ManifestObjectName); err == nil || !os.IsNotExist(err) {

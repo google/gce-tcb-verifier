@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/gce-tcb-verifier/cmd"
 	"github.com/google/gce-tcb-verifier/keys"
+	"github.com/google/gce-tcb-verifier/rotate"
 	"github.com/google/gce-tcb-verifier/sign/memca"
 	"github.com/google/gce-tcb-verifier/sign/nonprod"
 	"github.com/google/gce-tcb-verifier/testing/testkm"
@@ -104,7 +105,9 @@ func TestNonprodWipeout(t *testing.T) {
 	ca := memca.Create()
 	c := &cobra.Command{}
 	ctx0 := context.Background()
-	c.SetContext(keys.NewContext(ctx0, &keys.Context{Random: testsign.SignerRand()}))
+	c.SetContext(rotate.NewWipeoutContext(
+		keys.NewContext(ctx0, &keys.Context{Random: testsign.SignerRand()}),
+		&rotate.WipeoutContext{CA: true, Keys: true}))
 	m.AddFlags(c)
 	ca.AddFlags(c)
 
