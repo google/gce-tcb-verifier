@@ -64,30 +64,29 @@ func TestMakeEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("makeEvents(%v) failed: %v", e, err)
 	}
-	varEvt := combine([]byte{0x92, 0x00}, // Event length as little endian uint16
-		[]byte("SP800-155 Event3"),
+	varEvt := combine([]byte("SP800-155 Event3"),
 		binary.LittleEndian.AppendUint32(nil, 11129), // PlatformManufacturerID
 		rimEFIGUID, // ReferenceManifestGuid
-		append([]byte{byte(len(googleManufacturer))}, []byte(googleManufacturer)...), // PlatformManufacturerStr
-		append([]byte{byte(len(platformModel))}, []byte(platformModel)...),           // PlatformModel
-		[]byte{0}, // PlatformVersion
-		append([]byte{byte(len(googleManufacturer))}, []byte(googleManufacturer)...), // FirmwareManufacturerStr
-		binary.LittleEndian.AppendUint32(nil, 11129),                                 // FirmwareManufacturerID
-		[]byte{0}, // FirmwareVersion
-		binary.LittleEndian.AppendUint32(nil, eventlog.RIMLocationVariable), // RIM locator type
-		binary.LittleEndian.AppendUint32(nil, uint32(len(rimVar))),          // RIM locator (length)
+		append([]byte{byte(len(googleManufacturer) + 1)}, []byte(googleManufacturer+"\x00")...), // PlatformManufacturerStr
+		append([]byte{byte(len(platformModel) + 1)}, []byte(platformModel+"\x00")...),           // PlatformModel
+		[]byte{1, 0}, // PlatformVersion
+		append([]byte{byte(len(googleManufacturer) + 1)}, []byte(googleManufacturer+"\x00")...), // FirmwareManufacturerStr
+		binary.LittleEndian.AppendUint32(nil, 11129),                                            // FirmwareManufacturerID
+		append([]byte{byte(len(firmwareVersion)) + 1}, []byte(firmwareVersion+"\x00")...),       // FirmwareVersion
+		binary.LittleEndian.AppendUint32(nil, eventlog.RIMLocationVariable),                     // RIM locator type
+		binary.LittleEndian.AppendUint32(nil, uint32(len(rimVar))),                              // RIM locator (length)
 		rimVar,             // Rim locator (data)
 		[]byte{0, 0, 0, 0}, // Platform cert locator type
 		[]byte{0, 0, 0, 0}, // Platform cert length
 	)
-	wantVarLen := 148
+	wantVarLen := 154
 	if len(varEvt) != wantVarLen {
 		t.Errorf("varEvt = %v, want length %d", varEvt, wantVarLen)
 	}
 	if diff := cmp.Diff(varEvt, blob[:wantVarLen]); diff != "" {
 		t.Errorf("makeEvents(%v) = %v..., want %v...: diff (-want, +got) %s", e, blob[:wantVarLen], varEvt, diff)
 	}
-	wantBlobLen := 276 + wantVarLen
+	wantBlobLen := 282 + wantVarLen
 	if len(blob) != wantBlobLen {
 		t.Errorf("makeEvents(%v) = %v, want length %d", e, len(blob), wantBlobLen)
 	}

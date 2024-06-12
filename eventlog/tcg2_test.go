@@ -34,13 +34,13 @@ var (
 	efiRIM    = []byte{0x7f, 0x6d, 0x1b, 0xc5, 0x2a, 0x9c, 0xd6, 0x42, 0xbe, 0x47, 0xca, 0x13, 0x68, 0xbd, 0xc3, 0x33}
 	fields    = [][]byte{
 		binary.LittleEndian.AppendUint32(nil, 11129), // Platform Manufacturer ID
-		efiRIM, // RIM GUID
-		bytesizedArray([]byte("Google Compute Engine")),             // PlatformManufacturerStr
-		bytesizedArray([]byte("PFModel")),                           // PlatformModel
-		bytesizedArray([]byte("PFVersion")),                         // PlatformVersion
-		bytesizedArray([]byte("Vanadium")),                          // FirmwareManufacturerStr
-		binary.LittleEndian.AppendUint32(nil, 54494),                // FirmwareManufacturer ID
-		bytesizedArray([]byte("2.0.0")),                             // FirmwareVersion
+		efiRIM,                                       // RIM GUID
+		byteSizedCStr("Google Compute Engine"),       // PlatformManufacturerStr
+		byteSizedCStr("PFModel"),                     // PlatformModel
+		byteSizedCStr("PFVersion"),                   // PlatformVersion
+		byteSizedCStr("Vanadium"),                    // FirmwareManufacturerStr
+		binary.LittleEndian.AppendUint32(nil, 54494), // FirmwareManufacturer ID
+		byteSizedCStr("2.0.0"),                       // FirmwareVersion
 		binary.LittleEndian.AppendUint32(nil, RIMLocationVariable),  // RIM Locator Type
 		sizedArray(append(myEfiGUID, 'V', 0, 'a', 0, 'r', 0, 0, 0)), // RIM Locator
 		binary.LittleEndian.AppendUint32(nil, RIMLocationRaw),       // PlatformCertLocatorType
@@ -49,16 +49,15 @@ var (
 	goodStruct = &SP800155Event3{
 		PlatformManufacturerID:  11129,
 		ReferenceManifestGUID:   EfiGUID{UUID: uuid.MustParse(rimGUID)},
-		PlatformManufacturerStr: ByteSizedArray{Data: []byte("Google Compute Engine")},
-		PlatformModel:           ByteSizedArray{Data: []byte("PFModel")},
-		PlatformVersion:         ByteSizedArray{Data: []byte("PFVersion")},
-		FirmwareManufacturerStr: ByteSizedArray{Data: []byte("Vanadium")},
+		PlatformManufacturerStr: ByteSizedCStr{Data: "Google Compute Engine"},
+		PlatformModel:           ByteSizedCStr{Data: "PFModel"},
+		PlatformVersion:         ByteSizedCStr{Data: "PFVersion"},
+		FirmwareManufacturerStr: ByteSizedCStr{Data: "Vanadium"},
 		FirmwareManufacturerID:  54494,
-		FirmwareVersion:         ByteSizedArray{Data: []byte("2.0.0")},
+		FirmwareVersion:         ByteSizedCStr{Data: "2.0.0"},
 		RIMLocatorType:          RIMLocationVariable,
 		RIMLocator:              Uint32SizedArray{Data: append(myEfiGUID, 'V', 0, 'a', 0, 'r', 0, 0, 0)},
 		PlatformCertLocatorType: RIMLocationRaw,
-		PlatformCertLocator:     Uint32SizedArray{Data: []byte{}},
 	}
 )
 
@@ -78,7 +77,8 @@ func combine(base []byte, additions ...[]byte) []byte {
 	return result
 }
 
-func bytesizedArray(b []byte) []byte {
+func byteSizedCStr(s string) []byte {
+	b := []byte(s + "\x00")
 	return append([]byte{byte(len(b))}, b...)
 }
 
@@ -100,16 +100,21 @@ func TestReadSp800155Event3(t *testing.T) {
 			want:  goodStruct,
 		},
 		{
-			name:  "meager",
-			input: make([]byte, 45),
-			want: &SP800155Event3{PlatformManufacturerStr: ByteSizedArray{Data: []byte{}},
-				PlatformModel:           ByteSizedArray{Data: []byte{}},
-				PlatformVersion:         ByteSizedArray{Data: []byte{}},
-				FirmwareManufacturerStr: ByteSizedArray{Data: []byte{}},
-				FirmwareVersion:         ByteSizedArray{Data: []byte{}},
-				PlatformCertLocator:     Uint32SizedArray{Data: []byte{}},
-				RIMLocator:              Uint32SizedArray{Data: []byte{}},
+			name: "meager",
+			input: []byte{0, 0, 0, 0, // VendorID
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // ReferenceManifestGUID
+				1, 0, // PlatformManufacturerStr
+				1, 0, // PlatformModel
+				1, 0, // PlatformVersion
+				1, 0, // FirmwareManufacturerStr
+				0, 0, 0, 0, // FirmwareManufacturerID
+				1, 0, // FirmwareVersion
+				0, 0, 0, 0, // RimLocatorType
+				0, 0, 0, 0, // RimLocatorSize
+				0, 0, 0, 0, // PlatformCertLocatorType
+				0, 0, 0, 0, // PlatformCertLocatorSize
 			},
+			want: &SP800155Event3{},
 		},
 		{
 			name:    "truncated0",
@@ -124,27 +129,27 @@ func TestReadSp800155Event3(t *testing.T) {
 		{
 			name:    "truncated2a",
 			input:   makeEvent(2),
-			wantErr: "failed to read PlatformManufacturerStr as *eventlog.ByteSizedArray",
+			wantErr: "failed to read PlatformManufacturerStr as *eventlog.ByteSizedCStr",
 		},
 		{
 			name:    "truncated2b",
 			input:   append(makeEvent(2), 3),
-			wantErr: "failed to read PlatformManufacturerStr as *eventlog.ByteSizedArray",
+			wantErr: "failed to read PlatformManufacturerStr as *eventlog.ByteSizedCStr",
 		},
 		{
 			name:    "truncated3",
 			input:   makeEvent(3),
-			wantErr: "failed to read PlatformModel as *eventlog.ByteSizedArray",
+			wantErr: "failed to read PlatformModel as *eventlog.ByteSizedCStr",
 		},
 		{
 			name:    "truncated4",
 			input:   makeEvent(4),
-			wantErr: "failed to read PlatformVersion as *eventlog.ByteSizedArray: failed to read array size as *uint8",
+			wantErr: "failed to read PlatformVersion as *eventlog.ByteSizedCStr: failed to read array size as *uint8",
 		},
 		{
 			name:    "truncated5",
 			input:   makeEvent(5),
-			wantErr: "failed to read FirmwareManufacturerStr as *eventlog.ByteSizedArray",
+			wantErr: "failed to read FirmwareManufacturerStr as *eventlog.ByteSizedCStr",
 		},
 		{
 			name:    "truncated6",
@@ -154,7 +159,7 @@ func TestReadSp800155Event3(t *testing.T) {
 		{
 			name:    "truncated7",
 			input:   makeEvent(7),
-			wantErr: "failed to read FirmwareVersion as *eventlog.ByteSizedArray",
+			wantErr: "failed to read FirmwareVersion as *eventlog.ByteSizedCStr",
 		},
 		{
 			name:    "truncated8",

@@ -179,7 +179,7 @@ func TestExtractEndorsement(t *testing.T) {
 					Events: []*eventlog.TCGPCREvent2{
 						{EventType: eventlog.EvNoAction,
 							EventData: eventlog.TCGEventData{Event: &eventlog.SP800155Event3{
-								FirmwareManufacturerStr: eventlog.ByteSizedArray{Data: []byte(GCEFirmwareManufacturer)},
+								FirmwareManufacturerStr: eventlog.ByteSizedCStr{Data: GCEFirmwareManufacturer},
 								RIMLocatorType:          eventlog.RIMLocationVariable,
 								RIMLocator:              eventlog.Uint32SizedArray{Data: append(myEfiGUID, 'V', 0, 'a', 0, 'r', 0, 0, 0)},
 							}}},
@@ -189,7 +189,7 @@ func TestExtractEndorsement(t *testing.T) {
 
 				return &Options{
 					EventLogLocation:     evlog,
-					FirmwareManufacturer: []byte(GCEFirmwareManufacturer),
+					FirmwareManufacturer: GCEFirmwareManufacturer,
 					UEFIVariableReader:   exel.MakeEfiVarFSReader(efidir),
 				}
 			}(),

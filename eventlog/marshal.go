@@ -29,9 +29,13 @@ type Marshallable interface {
 
 // Marshal writes an array of bytes no longer than 255 entries with an initial byte noting
 // the array length, and then each byte of the array afterwards.
-func (b *ByteSizedArray) Marshal(w io.Writer) error {
-	size := byte(len(b.Data))
-	return writeSizedArray(w, size, b.Data)
+func (b *ByteSizedCStr) Marshal(w io.Writer) error {
+	data := []byte(b.Data + "\x00")
+	if len(data) > 255 {
+		return fmt.Errorf("data is too long for ByteSizedCStr: %d", len(data))
+	}
+	size := byte(len(data))
+	return writeSizedArray(w, size, data)
 }
 
 // Marshal writes an array of bytes with a initial 4 bytes in little endian noting

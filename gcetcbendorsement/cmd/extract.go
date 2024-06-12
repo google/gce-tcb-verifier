@@ -79,7 +79,7 @@ func (c *extractCommand) runE(cmd *cobra.Command, args []string) error {
 	endorsement, err := extract.Endorsement(&extract.Options{
 		Provider:             backend.Provider,
 		Getter:               backend.Getter,
-		FirmwareManufacturer: []byte(c.manufacturer),
+		FirmwareManufacturer: c.manufacturer,
 		EventLogLocation:     c.eventlogpath,
 		UEFIVariableReader:   reader,
 		Quote:                c.content,
