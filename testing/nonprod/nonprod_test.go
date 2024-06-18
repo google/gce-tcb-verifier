@@ -35,11 +35,11 @@ import (
 	"github.com/google/gce-tcb-verifier/sign/memca"
 	"github.com/google/gce-tcb-verifier/sign/nonprod"
 	"github.com/google/gce-tcb-verifier/testing/devkeys"
+	"github.com/google/gce-tcb-verifier/testing/fakeovmf"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/localca"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/localkm"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/localnonvcs"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/memkm"
-	"github.com/google/gce-tcb-verifier/testing/ovmfsev"
 	"github.com/google/gce-tcb-verifier/testing/testkm"
 	"github.com/google/gce-tcb-verifier/testing/testsign"
 	"github.com/google/go-cmp/cmp"
@@ -53,7 +53,7 @@ import (
 const mb = 1024 * 1024
 
 var (
-	fwBytes  = ovmfsev.CleanExample(&testing.T{}, 2*mb)
+	fwBytes  = fakeovmf.CleanExample(&testing.T{}, 2*mb)
 	fwDigest = sha512.Sum384(fwBytes)
 )
 

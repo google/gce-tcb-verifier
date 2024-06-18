@@ -27,9 +27,9 @@ import (
 	"github.com/google/gce-tcb-verifier/sign/memca"
 	"github.com/google/gce-tcb-verifier/sign/nonprod"
 	"github.com/google/gce-tcb-verifier/testing/devkeys"
+	"github.com/google/gce-tcb-verifier/testing/fakeovmf"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/localnonvcs"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/memkm"
-	"github.com/google/gce-tcb-verifier/testing/ovmfsev"
 	"github.com/google/gce-tcb-verifier/testing/testsign"
 )
 
@@ -38,9 +38,9 @@ const (
 	SignKey = "projects/testProject/locations/us-west1/keyRings/gce-cc-ring/cryptoKeys/gce-uefi-signer/cryptoKeyVersions/1"
 	// CleanExampleMeasurement is the hex encoding of a 2MiB 1 VMSA measurement of the CleanExample
 	// firmware binary.
-	CleanExampleMeasurement = "2247cc90eae3eff72c8d4b4ea5fefb8914bd80ad093859d5d022332eba7c7abe59e13d525c941ede5541191d7149585d"
+	CleanExampleMeasurement = "20ec0dbd1c0a26d184a6f11ec5a796d68ec03c9d101bdd84c03f3d9cbbc4a292a9fad098edacfa04da0da58f20be885e"
 	// CleanExampleURL is the URL of the endorsement of the CleanExample firmware binary.
-	CleanExampleURL = "https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/2247cc90eae3eff72c8d4b4ea5fefb8914bd80ad093859d5d022332eba7c7abe59e13d525c941ede5541191d7149585d.binarypb"
+	CleanExampleURL = "https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/20ec0dbd1c0a26d184a6f11ec5a796d68ec03c9d101bdd84c03f3d9cbbc4a292a9fad098edacfa04da0da58f20be885e.binarypb"
 )
 
 // FakeData encapsulates resources needed for testing UEFI endorsement verification.
@@ -89,7 +89,7 @@ func FakeEndorsement(t testing.TB) []byte {
 	dir := t.TempDir()
 	c := cmd.Compose(memkm.TestOnlyT(), memca.TestOnlyCertificateAuthority(), &localnonvcs.T{Root: dir})
 	app := cmd.MakeApp(context.Background(), &cmd.AppComponents{Endorse: c})
-	fw := ovmfsev.CleanExample(t, 2*1024*1024)
+	fw := fakeovmf.CleanExample(t, 2*1024*1024)
 	fwPath := path.Join(dir, "ovmf_x64_csm.fd")
 	if err := os.WriteFile(fwPath, fw, 0644); err != nil {
 		t.Fatal(err)

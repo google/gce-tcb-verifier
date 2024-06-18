@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ovmfsev generates test OVMF binary data to test SEV binary parsing.
-package ovmfsev
+// Package fakeovmf generates test OVMF binary data to test OVMF binary parsing.
+package fakeovmf
 
 import (
 	"fmt"
-	"testing"
 
 	"github.com/google/gce-tcb-verifier/ovmf/abi"
 	opb "github.com/google/gce-tcb-verifier/proto/ovmf"
@@ -126,10 +125,10 @@ func InitializeSevResetBlock(firmware []byte, baseOffsetFromEnd int, resetBlockA
 func InitializeOvmfSevMetadata(firmware []byte,
 	baseOffsetFromEnd int,
 	snpSections []abi.SevMetadataSection) error {
-	offsetFromEnd := baseOffsetFromEnd + abi.SizeofSevMetadataOffset
+	offsetFromEnd := baseOffsetFromEnd + abi.SizeofMetadataOffset
 	if len(firmware) == 0 || len(firmware) < offsetFromEnd {
 		return fmt.Errorf("the given firmware is too small to hold an OVMF metadata offset ending at baseOffsetFromEnd. buffer size: %d, OVMF metadata offset size: %d",
-			len(firmware), abi.SizeofSevMetadataOffset)
+			len(firmware), abi.SizeofMetadataOffset)
 	}
 	// The first part of the Metadata block defines the length and size of the
 	// whole structure.
@@ -161,57 +160,37 @@ func InitializeOvmfSevMetadata(firmware []byte,
 
 	// We generate the GUID-ed table entry and set it to point to the SEV
 	// Metadata with an offset calculated from the back.
-	guidTableOffset := abi.SevMetadataOffset{Offset: uint32(len(firmware))}
+	guidTableOffset := abi.MetadataOffset{Offset: uint32(len(firmware))}
 	guidTableOffset.GUIDEntry.GUID = uuid.MustParse(abi.SevMetadataOffsetGUID)
-	guidTableOffset.GUIDEntry.Size = abi.SizeofSevMetadataOffset
+	guidTableOffset.GUIDEntry.Size = abi.SizeofMetadataOffset
 	guidTableOffset.Put(firmware[len(firmware)-offsetFromEnd:])
 
 	return nil
 }
 
-// InitializeSevGUIDTable creates a SEV GUID table containing the SevEsResetBlock and
+// InitializeSevGUIDTableFns creates a SEV GUID table containing the SevEsResetBlock and
 // SevSnpBootBlock to test helper functions that search for and extract the reset block from
 // `firmware`. `baseOffsetFromEnd` is the offset from the end of the firmware where the footer GUID
 // block will be initialized.
-func InitializeSevGUIDTable(
+func InitializeSevGUIDTableFns(
 	firmware []byte,
-	baseOffsetFromEnd int,
 	resetBlockAddr uint32,
-	snpSections []abi.SevMetadataSection) error {
-	// If GUID table is used in the firmware, the footer GUID will be
-	// `FwGuidTableFooterGuid`. Make sure that the firmware is large
-	// enough to have the footer block.
-	footerOffsetFromEnd := baseOffsetFromEnd + abi.SizeofFwGUIDEntry
-	if len(firmware) < footerOffsetFromEnd {
-		return fmt.Errorf("firmware size is too small to copy the footer block")
-	}
-	var footerBlock abi.FwGUIDEntry
-	footerBlock.GUID = uuid.MustParse(abi.FwGUIDTableFooterGUID)
+	snpSections []abi.SevMetadataSection) []func(uint16) error {
 
-	// `footerBlock.size` will be the sum of the footer block and all the other
-	// blocks in the GUID table. For this test, an ES reset block and an SNP
-	// boot block are included in the GUID table.
-	footerBlock.Size = abi.SizeofFwGUIDEntry + abi.SizeofSevEsResetBlock + abi.SizeofSevMetadataOffset
-
-	// Create a new SevEs firmware block with the GUID table.
-	// First copy the SevEsResetBlock to just before the GUID table footer block.
-	if err := InitializeSevResetBlock(
-		firmware, footerOffsetFromEnd, resetBlockAddr); err != nil {
-		return err
+	resetFn := func(offset uint16) error {
+		// Create a new SevEs firmware block with the GUID table.
+		// First copy the SevEsResetBlock to just before the GUID table footer block.
+		return InitializeSevResetBlock(firmware, int(offset), resetBlockAddr)
 	}
 
-	resetBlockOffsetFromEnd := footerOffsetFromEnd + abi.SizeofSevEsResetBlock
-	if err := InitializeOvmfSevMetadata(
-		firmware, resetBlockOffsetFromEnd, snpSections); err != nil {
-		return err
+	metadataFn := func(offset uint16) error {
+		return InitializeOvmfSevMetadata(firmware, int(offset), snpSections)
 	}
-	// Just after the SevEsResetBlock, copy the SevEsFooterBlock.
-	blockStart := len(firmware) - footerOffsetFromEnd
-	return footerBlock.Put(firmware[blockStart : blockStart+abi.SizeofFwGUIDEntry])
+	return []func(uint16) error{resetFn, metadataFn}
 }
 
 // MutateSevEsResetBlock calls mutate on the protobuf representation of the SEV-ES reset block from
-// within a properly formatted firmware buffer, and mutates the byte reresentation of the firmware
+// within a properly formatted firmware buffer, and mutates the byte representation of the firmware
 // to the ABI representation of the SEV-ES reset block.
 func MutateSevEsResetBlock(firmware []byte, mutate func(*opb.SevEsResetBlock, int) error) error {
 	// The firmware is expected to have the following shape:
@@ -237,10 +216,25 @@ func MutateSevEsResetBlock(firmware []byte, mutate func(*opb.SevEsResetBlock, in
 	return abi.PutSevEsResetBlock(resetEntry, block)
 }
 
-// MutateSevMetadataOffsetBlock calls mutate on the internal representation of the SEV-SNP metadata
-// offset block from within a properly formatted firmware buffer, and mutates the byte reresentation
-// of the firmware to the ABI representation of the SEV-SNP metadata block offset.
-func MutateSevMetadataOffsetBlock(firmware []byte, mutate func(*abi.SevMetadataOffset) error) error {
+// MutateMetadataOffsetBlock calls mutate on the internal representation of the pointed-to metadata
+// offset block from within a properly formatted firmware buffer, and mutates the byte
+// representation of the firmware to the ABI representation of the metadata block offset.
+func MutateMetadataOffsetBlock(firmware []byte, offset uint32, mutate func(*abi.MetadataOffset) error) error {
+	metadataOffset := firmware[offset:]
+	block, err := abi.MetadataOffsetFromBytes(metadataOffset)
+	if err != nil {
+		return err
+	}
+	if err := mutate(block); err != nil {
+		return err
+	}
+	return block.Put(metadataOffset)
+}
+
+// MutateSevMetadataOffsetBlock calls mutate on the internal representation of the SEV-SNP
+// metadata offset block from within a properly formatted firmware buffer, and mutates the byte
+// representation of the firmware to the ABI representation of the SEV-SNP metadata block offset.
+func MutateSevMetadataOffsetBlock(firmware []byte, mutate func(*abi.MetadataOffset) error) error {
 	// The firmware is expected to have the following shape:
 	//
 	// |...|
@@ -251,30 +245,7 @@ func MutateSevMetadataOffsetBlock(firmware []byte, mutate func(*abi.SevMetadataO
 	//
 	// tableContentsLength below is calculated by removing bottom two
 	// elements from the GUID table buffer.
-	tableContentsLength := len(firmware) - abi.FwGUIDTableEndOffset - abi.SizeofFwGUIDEntry
+	tableContentsLength := uint32(len(firmware)) - abi.FwGUIDTableEndOffset - abi.SizeofFwGUIDEntry
 	resetBlockOffset := tableContentsLength - abi.SizeofSevEsResetBlock
-	metadataOffset := firmware[resetBlockOffset-abi.SizeofSevMetadataOffset : resetBlockOffset]
-	block, err := abi.SevMetadataOffsetFromBytes(metadataOffset)
-	if err != nil {
-		return err
-	}
-	if err := mutate(block); err != nil {
-		return err
-	}
-	return block.Put(metadataOffset)
-}
-
-// CleanExample returns an example "UEFI" binary that contains expected metadata.
-func CleanExample(t testing.TB, size int) []byte {
-	t.Helper()
-	if size < 0x1000 {
-		t.Fatalf("example size must be >= 0x1000")
-	}
-	firmware := make([]byte, size)
-	copy(firmware[0x800:], []byte("LGTMLGTMLGTMLGTM"))
-	copy(firmware[0xa00:], []byte("LGTMLGTMLGTMLGTM"))
-	if err := InitializeSevGUIDTable(firmware[:], abi.FwGUIDTableEndOffset, SevEsAddrVal, DefaultSnpSections()); err != nil {
-		t.Fatalf("fake.InitializeSevGUIDTable() errored unexpectedly: %v", err)
-	}
-	return firmware
+	return MutateMetadataOffsetBlock(firmware, resetBlockOffset-abi.SizeofMetadataOffset, mutate)
 }

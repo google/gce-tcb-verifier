@@ -88,12 +88,12 @@ func SevSectionTypeToString(kind uint32) string {
 // if present.
 func extractSevOvmfMetadata(guidBlockMap map[string][]byte, firmware []byte) ([]abi.SevMetadataSection, error) {
 	// Extract the GUID table from the firmware.
-	guidBlock, err := extractGUIDBlockFromMap(guidBlockMap, abi.SevMetadataOffsetGUID, abi.SizeofSevMetadataOffset)
+	guidBlock, err := extractGUIDBlockFromMap(guidBlockMap, abi.SevMetadataOffsetGUID, abi.SizeofMetadataOffset)
 	if err != nil {
 		return nil, fmt.Errorf("could not extract SEV metadata offset GUID block: %v", err)
 	}
 
-	metadataOffset, err := abi.SevMetadataOffsetFromBytes(guidBlock)
+	metadataOffset, err := abi.MetadataOffsetFromBytes(guidBlock)
 	if err != nil {
 		return nil, fmt.Errorf("could not extract SEV metadata offset: %v", err)
 	}

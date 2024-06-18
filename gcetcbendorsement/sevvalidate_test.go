@@ -15,10 +15,10 @@
 package gcetcbendorsement
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
-	"context"
 	"os"
 	"path"
 	"testing"
@@ -28,10 +28,10 @@ import (
 	"github.com/google/gce-tcb-verifier/keys"
 	"github.com/google/gce-tcb-verifier/sev"
 	"github.com/google/gce-tcb-verifier/sign/memca"
+	"github.com/google/gce-tcb-verifier/testing/fakeovmf"
 	"github.com/google/gce-tcb-verifier/testing/match"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/localnonvcs"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/memkm"
-	"github.com/google/gce-tcb-verifier/testing/ovmfsev"
 	"github.com/google/gce-tcb-verifier/testing/testsign"
 	"github.com/google/go-sev-guest/abi"
 	cpb "github.com/google/go-sev-guest/proto/check"
@@ -54,7 +54,7 @@ func TestSevValidate(t *testing.T) {
 			Product:     spb.SevProduct_SEV_PRODUCT_MILAN,
 		},
 		ClSpec:    4321,
-		Image:     ovmfsev.CleanExample(t, 2*1024*1024),
+		Image:     fakeovmf.CleanExample(t, 2*1024*1024),
 		VCS:       &localnonvcs.T{Root: dir},
 		Timestamp: now,
 	}
@@ -89,7 +89,7 @@ func TestSevValidate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("test.DefaultTestOnlyCertChain() = %v, want nil", err)
 	}
-	cleanMeasurement := "2247cc90eae3eff72c8d4b4ea5fefb8914bd80ad093859d5d022332eba7c7abe59e13d525c941ede5541191d7149585d"
+	cleanMeasurement := "20ec0dbd1c0a26d184a6f11ec5a796d68ec03c9d101bdd84c03f3d9cbbc4a292a9fad098edacfa04da0da58f20be885e"
 	meas, _ := hex.DecodeString(cleanMeasurement)
 	endorsementURI := fmt.Sprintf("https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/%s.binarypb", cleanMeasurement)
 	report := &spb.Report{

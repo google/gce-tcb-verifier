@@ -68,8 +68,8 @@ const (
 	SevSvsmCaaSection = uint32(0x4)
 	// SizeofSevEsResetBlock is the ABI size of the packed struct of an SevEsResetBlock.
 	SizeofSevEsResetBlock = 22
-	// SizeofSevMetadataOffset is the ABI size of the packed struct of a SevMetadataOffset.
-	SizeofSevMetadataOffset = 4 + SizeofFwGUIDEntry
+	// SizeofMetadataOffset is the ABI size of the packed struct of a MetadataOffset.
+	SizeofMetadataOffset = 4 + SizeofFwGUIDEntry
 	// SizeofSevMetadata is the ABI size of the packed struct of a SevMetadata.
 	SizeofSevMetadata = 16
 	// SizeofSevMetadataSection is the ABI size of the packed struct of a SevMetadataSection.
@@ -263,31 +263,31 @@ func SevMetadataFromBytes(guidBlock []byte) *SevMetadata {
 	}
 }
 
-// SevMetadataOffset represents the offset information in the GUIDed table pointing to the SNP
+// MetadataOffset represents the offset information in the GUIDed table pointing to the SNP
 // metadata.
-type SevMetadataOffset struct {
+type MetadataOffset struct {
 	Offset    uint32
 	GUIDEntry FwGUIDEntry
 }
 
 // Put writes s in its ABI format to the beginning of data./
-func (s *SevMetadataOffset) Put(data []byte) error {
-	if len(data) < SizeofSevMetadataOffset {
-		return fmt.Errorf("data too small for SEV metadata offset: %d < %d", len(data), SizeofSevMetadataOffset)
+func (s *MetadataOffset) Put(data []byte) error {
+	if len(data) < SizeofMetadataOffset {
+		return fmt.Errorf("data too small for SEV metadata offset: %d < %d", len(data), SizeofMetadataOffset)
 	}
 	binary.LittleEndian.PutUint32(data[0:4], s.Offset)
-	if err := s.GUIDEntry.Put(data[4:SizeofSevMetadataOffset]); err != nil {
+	if err := s.GUIDEntry.Put(data[4:SizeofMetadataOffset]); err != nil {
 		return fmt.Errorf("could not write GUIDEntry: %v", err)
 	}
 	return nil
 }
 
-// SevMetadataOffsetFromBytes interprets an OVMF GUID block as SevMetadataOffset.
-func SevMetadataOffsetFromBytes(guidBlock []byte) (*SevMetadataOffset, error) {
-	result := &SevMetadataOffset{
+// MetadataOffsetFromBytes interprets an OVMF GUID block as MetadataOffset.
+func MetadataOffsetFromBytes(guidBlock []byte) (*MetadataOffset, error) {
+	result := &MetadataOffset{
 		Offset: binary.LittleEndian.Uint32(guidBlock[0:4]),
 	}
-	if err := result.GUIDEntry.PopulateFromBytes(guidBlock[4:SizeofSevMetadataOffset]); err != nil {
+	if err := result.GUIDEntry.PopulateFromBytes(guidBlock[4:SizeofMetadataOffset]); err != nil {
 		return nil, fmt.Errorf("could not populate GUIDEntry: %v", err)
 	}
 	return result, nil
@@ -298,10 +298,8 @@ func SevEsResetBlockFromBytes(data []byte) (*opb.SevEsResetBlock, error) {
 	if len(data) != SizeofSevEsResetBlock {
 		return nil, fmt.Errorf("unexpected SEV-ES reset block size %d, want: %d", len(data), SizeofSevEsResetBlock)
 	}
-	guid, err := FromEFIGUID(data[6:SizeofSevEsResetBlock])
-	if err != nil {
-		return nil, fmt.Errorf("could not parse EFI GUID: %v", err)
-	}
+	// SizeofSevEsResetBlock - 6 = 16, so FromEFIGUID cannot error.
+	guid, _ := FromEFIGUID(data[6:SizeofSevEsResetBlock])
 	result := &opb.SevEsResetBlock{
 		Addr: binary.LittleEndian.Uint32(data[0:4]),
 		Size: uint32(binary.LittleEndian.Uint16(data[4:6])),
@@ -428,6 +426,11 @@ func TDXMetadataFromBytes(data []byte) (*TDXMetadata, error) {
 	return &TDXMetadata{Header: hdr, Sections: sections}, nil
 }
 
+// Size returns the size of the TDX metadata in bytes.
+func (m *TDXMetadata) Size() uint32 {
+	return SizeofTDXMetadataDescriptor + m.Header.SectionCount*SizeofTDXMetdataSection
+}
+
 // Put writes TDX metadata to the beginning of data.
 func (m *TDXMetadata) Put(data []byte) error {
 	if m.Header == nil {
@@ -437,7 +440,7 @@ func (m *TDXMetadata) Put(data []byte) error {
 		return fmt.Errorf("TDX metadata illformed. SectionsCount: %d but len(Sections): %d",
 			m.Header.SectionCount, len(m.Sections))
 	}
-	byteSize := SizeofTDXMetadataDescriptor + m.Header.SectionCount*SizeofTDXMetdataSection
+	byteSize := m.Size()
 	if uint32(len(data)) < byteSize {
 		return fmt.Errorf("data too small for %d TDX metadata sections: %d < %d", m.Header.SectionCount,
 			len(data), byteSize)

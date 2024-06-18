@@ -22,8 +22,8 @@ import (
 	oabi "github.com/google/gce-tcb-verifier/ovmf/abi"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
 	spb "github.com/google/gce-tcb-verifier/proto/sev"
+	"github.com/google/gce-tcb-verifier/testing/fakeovmf"
 	"github.com/google/gce-tcb-verifier/testing/match"
-	"github.com/google/gce-tcb-verifier/testing/ovmfsev"
 	"github.com/google/go-cmp/cmp"
 	sgpb "github.com/google/go-sev-guest/proto/sevsnp"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -859,15 +859,15 @@ func TestLaunchDigest(t *testing.T) {
 	// print(', '.join([hex(b) for b in digest_cur]))
 	// ```
 	// </code>
-	firmware := ovmfsev.CleanExample(t, 0x1000)
+	firmware := fakeovmf.CleanExample(t, 0x1000)
 	digest, err := LaunchDigest(&LaunchOptions{Vcpus: 1, Product: sgpb.SevProduct_SEV_PRODUCT_MILAN}, firmware[:])
 	if err != nil {
 		t.Fatalf("LaunchDigest(&LaunchOptions{Vcpus: 1, Product: Milan}, firmware[:]) errored unexpectedly: %v", err)
 	}
 	want := []byte{
-		0x6, 0x84, 0x3d, 0xe0, 0xc, 0x62, 0xbb, 0x9a, 0x12, 0xfd, 0x87, 0xb, 0xd3, 0x40, 0xe1, 0xaf,
-		0x8b, 0xe, 0xbf, 0x51, 0x6e, 0x3f, 0xe0, 0x4f, 0x5c, 0x9a, 0xdd, 0x43, 0xb7, 0x98, 0x1a, 0x1d,
-		0xf2, 0xe8, 0x25, 0xb4, 0xc7, 0x12, 0xfb, 0xd8, 0x7c, 0x97, 0xb1, 0x29, 0xeb, 0xa2, 0xe6, 0xde}
+		0x30, 0x1a, 0x56, 0xe0, 0x01, 0x40, 0x65, 0xed, 0x60, 0xa3, 0xc8, 0x48, 0xea, 0x0d, 0x3d, 0x0b,
+		0x2a, 0xa4, 0x6f, 0x4b, 0xfe, 0xa9, 0xdd, 0xea, 0xdb, 0xc6, 0x02, 0x14, 0x6d, 0x4c, 0x08, 0x78,
+		0x51, 0xab, 0x2c, 0x15, 0xd5, 0x73, 0xf8, 0xb2, 0xa4, 0x2e, 0xcc, 0x82, 0xd7, 0x4c, 0x9d, 0xb8}
 	if !bytes.Equal(digest, want) {
 		t.Errorf("LaunchDigest(&LaunchOptions{Vcpus: 1, Product: Milan}, firmware[:]) = %v, want %v", digest, want)
 	}
@@ -877,8 +877,8 @@ func TestUnsignedSnp(t *testing.T) {
 	var firmware [0x1000]byte
 	copy(firmware[0x800:], []byte("LGTMLGTMLGTMLGTM"))
 	copy(firmware[0xa00:], []byte("LGTMLGTMLGTMLGTM"))
-	if err := ovmfsev.InitializeSevGUIDTable(firmware[:], oabi.FwGUIDTableEndOffset, ovmfsev.SevEsAddrVal, ovmfsev.DefaultSnpSections()); err != nil {
-		t.Fatalf("ovmfsev.InitializeSevGUIDTable() errored unexpectedly: %v", err)
+	if err := fakeovmf.InitializeSevGUIDTable(firmware[:], oabi.FwGUIDTableEndOffset, fakeovmf.SevEsAddrVal, fakeovmf.DefaultSnpSections()); err != nil {
+		t.Fatalf("fakeovmf.InitializeSevGUIDTable() errored unexpectedly: %v", err)
 	}
 
 	snpRequest := &SnpEndorsementRequest{
@@ -911,8 +911,8 @@ func TestAllVmsas(t *testing.T) {
 	var firmware [0x1000]byte
 	copy(firmware[0x800:], []byte("LGTMLGTMLGTMLGTM"))
 	copy(firmware[0xa00:], []byte("LGTMLGTMLGTMLGTM"))
-	if err := ovmfsev.InitializeSevGUIDTable(firmware[:], oabi.FwGUIDTableEndOffset, ovmfsev.SevEsAddrVal, ovmfsev.DefaultSnpSections()); err != nil {
-		t.Fatalf("ovmfsev.InitializeSevGUIDTable() errored unexpectedly: %v", err)
+	if err := fakeovmf.InitializeSevGUIDTable(firmware[:], oabi.FwGUIDTableEndOffset, fakeovmf.SevEsAddrVal, fakeovmf.DefaultSnpSections()); err != nil {
+		t.Fatalf("fakeovmf.InitializeSevGUIDTable() errored unexpectedly: %v", err)
 	}
 
 	snpRequest := &SnpEndorsementRequest{Product: sgpb.SevProduct_SEV_PRODUCT_MILAN}
