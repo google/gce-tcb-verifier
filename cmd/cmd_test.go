@@ -31,8 +31,8 @@ import (
 	"github.com/google/gce-tcb-verifier/endorse"
 	"github.com/google/gce-tcb-verifier/keys"
 	oabi "github.com/google/gce-tcb-verifier/ovmf/abi"
+	"github.com/google/gce-tcb-verifier/testing/fakeovmf"
 	"github.com/google/gce-tcb-verifier/testing/match"
-	"github.com/google/gce-tcb-verifier/testing/ovmfsev"
 	"github.com/spf13/cobra"
 )
 
@@ -252,8 +252,8 @@ func TestSevSnpMeasurementOnly(t *testing.T) {
 	var firmware [0x1000]byte
 	copy(firmware[0x800:], []byte("LGTMLGTMLGTMLGTM"))
 	copy(firmware[0xa00:], []byte("LGTMLGTMLGTMLGTM"))
-	if err := ovmfsev.InitializeSevGUIDTable(firmware[:], oabi.FwGUIDTableEndOffset, ovmfsev.SevEsAddrVal, ovmfsev.DefaultSnpSections()); err != nil {
-		t.Fatalf("ovmfsev.InitializeSevGUIDTable() errored unexpectedly: %v", err)
+	if err := fakeovmf.InitializeSevGUIDTable(firmware[:], oabi.FwGUIDTableEndOffset, fakeovmf.SevEsAddrVal, fakeovmf.DefaultSnpSections()); err != nil {
+		t.Fatalf("fakeovmf.InitializeSevGUIDTable() errored unexpectedly: %v", err)
 	}
 	c.SetContext(keys.NewContext(context.Background(), &keys.Context{}))
 	cmp.AddFlags(c)

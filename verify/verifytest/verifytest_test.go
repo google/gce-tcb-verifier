@@ -37,8 +37,8 @@ import (
 	"github.com/google/gce-tcb-verifier/sign/nonprod"
 	"github.com/google/gce-tcb-verifier/sign/ops"
 	styp "github.com/google/gce-tcb-verifier/sign/types"
+	"github.com/google/gce-tcb-verifier/testing/fakeovmf"
 	"github.com/google/gce-tcb-verifier/testing/match"
-	"github.com/google/gce-tcb-verifier/testing/ovmfsev"
 	"github.com/google/gce-tcb-verifier/timeproto"
 	"github.com/google/gce-tcb-verifier/verify"
 	"github.com/google/go-sev-guest/abi"
@@ -86,8 +86,8 @@ func TestVerify(t *testing.T) {
 	if _, err := rnd.Read(uefi); err != nil {
 		t.Fatalf("could not populate uefi: %v", err)
 	}
-	if err := ovmfsev.InitializeSevGUIDTable(uefi[:], oabi.FwGUIDTableEndOffset, ovmfsev.SevEsAddrVal, ovmfsev.DefaultSnpSections()); err != nil {
-		t.Fatalf("ovmfsev.InitializeSevGUIDTable() errored unexpectedly: %v", err)
+	if err := fakeovmf.InitializeSevGUIDTable(uefi[:], oabi.FwGUIDTableEndOffset, fakeovmf.SevEsAddrVal, fakeovmf.DefaultSnpSections()); err != nil {
+		t.Fatalf("fakeovmf.InitializeSevGUIDTable() errored unexpectedly: %v", err)
 	}
 
 	uefidigest := sha512.Sum384(uefi)
@@ -269,7 +269,7 @@ func TestSNPValidateFunc(t *testing.T) {
 				Kind: validate.CertEntryRequire,
 				Validate: verify.SNPValidateFunc(&verify.Options{SNP: &verify.SNPOptions{}, Getter: &stest.Getter{
 					Responses: map[string][]stest.GetResponse{
-						"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/2247cc90eae3eff72c8d4b4ea5fefb8914bd80ad093859d5d022332eba7c7abe59e13d525c941ede5541191d7149585d.binarypb": {{Error: fmt.Errorf("nope to that")}},
+						"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/20ec0dbd1c0a26d184a6f11ec5a796d68ec03c9d101bdd84c03f3d9cbbc4a292a9fad098edacfa04da0da58f20be885e.binarypb": {{Error: fmt.Errorf("nope to that")}},
 					},
 				}}),
 			},
@@ -284,7 +284,7 @@ func TestSNPValidateFunc(t *testing.T) {
 					RootsOfTrust: rot,
 					Getter: &stest.Getter{
 						Responses: map[string][]stest.GetResponse{
-							"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/2247cc90eae3eff72c8d4b4ea5fefb8914bd80ad093859d5d022332eba7c7abe59e13d525c941ede5541191d7149585d.binarypb": {{Body: FakeEndorsement(t)}},
+							"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/20ec0dbd1c0a26d184a6f11ec5a796d68ec03c9d101bdd84c03f3d9cbbc4a292a9fad098edacfa04da0da58f20be885e.binarypb": {{Body: FakeEndorsement(t)}},
 						},
 					}}),
 			},

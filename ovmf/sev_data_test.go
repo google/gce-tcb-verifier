@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/gce-tcb-verifier/ovmf/abi"
 	opb "github.com/google/gce-tcb-verifier/proto/ovmf"
-	"github.com/google/gce-tcb-verifier/testing/ovmfsev"
+	"github.com/google/gce-tcb-verifier/testing/fakeovmf"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 )
@@ -40,10 +40,10 @@ const sizeofSevGUIDTableBuffer = 0x512
 
 func SetupOvmfSevDataTest() (*OvmfSevDataTest, error) {
 	result := &OvmfSevDataTest{}
-	if err := ovmfsev.InitializeSevResetBlock(result.sevEsBuffer[:], abi.FwGUIDTableEndOffset, ovmfsev.SevEsAddrVal); err != nil {
+	if err := fakeovmf.InitializeSevResetBlock(result.sevEsBuffer[:], abi.FwGUIDTableEndOffset, fakeovmf.SevEsAddrVal); err != nil {
 		return nil, err
 	}
-	if err := ovmfsev.InitializeSevGUIDTable(result.sevGUIDTableBuffer[:], abi.FwGUIDTableEndOffset, ovmfsev.SevEsAddrVal, ovmfsev.DefaultSnpSections()); err != nil {
+	if err := fakeovmf.InitializeSevGUIDTable(result.sevGUIDTableBuffer[:], abi.FwGUIDTableEndOffset, fakeovmf.SevEsAddrVal, fakeovmf.DefaultSnpSections()); err != nil {
 		return nil, err
 	}
 	result.firmwareWithGUIDTable = result.sevGUIDTableBuffer[:]
@@ -146,16 +146,16 @@ func TestExtractSevSnp(t *testing.T) {
 	}
 	want := []abi.SevMetadataSection{
 		{
-			Address: ovmfsev.SevSnpValidatedStartAddr,
-			Length:  ovmfsev.SevSnpValidatedLength,
+			Address: fakeovmf.SevSnpValidatedStartAddr,
+			Length:  fakeovmf.SevSnpValidatedLength,
 			Kind:    abi.SevUnmeasuredSection},
 		{
-			Address: ovmfsev.SevSnpCpuidAddr,
+			Address: fakeovmf.SevSnpCpuidAddr,
 			Length:  abi.PageSize,
 			Kind:    abi.SevCpuidSection,
 		},
 		{
-			Address: ovmfsev.SevSnpSecretAddr,
+			Address: fakeovmf.SevSnpSecretAddr,
 			Length:  abi.PageSize,
 			Kind:    abi.SevSecretSection,
 		},
@@ -210,8 +210,8 @@ func TestSnpMetadataSections(t *testing.T) {
 	}
 	initWith := func(sections []abi.SevMetadataSection) func(f *OvmfSevDataTest) error {
 		return func(f *OvmfSevDataTest) error {
-			if err := ovmfsev.InitializeSevGUIDTable(f.sevGUIDTableBuffer[:], abi.FwGUIDTableEndOffset, ovmfsev.SevEsAddrVal, sections); err != nil {
-				return fmt.Errorf("InitializeSevGUIDTable(%v, %v, %v, %v) = %s", f.sevGUIDTableBuffer, abi.FwGUIDTableEndOffset, ovmfsev.SevEsAddrVal, sections, err)
+			if err := fakeovmf.InitializeSevGUIDTable(f.sevGUIDTableBuffer[:], abi.FwGUIDTableEndOffset, fakeovmf.SevEsAddrVal, sections); err != nil {
+				return fmt.Errorf("InitializeSevGUIDTable(%v, %v, %v, %v) = %s", f.sevGUIDTableBuffer, abi.FwGUIDTableEndOffset, fakeovmf.SevEsAddrVal, sections, err)
 			}
 			return nil
 		}
@@ -219,47 +219,47 @@ func TestSnpMetadataSections(t *testing.T) {
 	tests := []testCase{
 		{
 			name: "ExtractSevOvmfMetadataValidTableWithGUID",
-			want: values(ovmfsev.DefaultSnpSections()),
+			want: values(fakeovmf.DefaultSnpSections()),
 		},
 		{
 			name:  "ExtraSecretSectionDisallowed",
-			setup: initWith(append(ovmfsev.DefaultSnpSections(), ovmfsev.SnpSecretSection(0x9000))),
+			setup: initWith(append(fakeovmf.DefaultSnpSections(), fakeovmf.SnpSecretSection(0x9000))),
 			want:  contains("expected only 1 section of type OVMF_SECTION_TYPE_SNP_SECRETS. Previous section at address 0xff004000 conflicts with extra section at address 0x9000"),
 		},
 		{
 			name: "SevSnpBadSize",
 			setup: initWith([]abi.SevMetadataSection{
-				ovmfsev.SnpValidatedSection(ovmfsev.SevSnpValidatedStartAddr, ovmfsev.SevSnpValidatedLength-1),
-				ovmfsev.SnpCpuidSection(ovmfsev.SevSnpValidatedStartAddr + ovmfsev.SevSnpValidatedLength),
-				ovmfsev.SnpSecretSectionDefault()}),
+				fakeovmf.SnpValidatedSection(fakeovmf.SevSnpValidatedStartAddr, fakeovmf.SevSnpValidatedLength-1),
+				fakeovmf.SnpCpuidSection(fakeovmf.SevSnpValidatedStartAddr + fakeovmf.SevSnpValidatedLength),
+				fakeovmf.SnpSecretSectionDefault()}),
 			want: contains("section OVMF_SECTION_TYPE_SNP_SEC_MEM has length that's not a positive multiple of a 4K page size: 0xfff"),
 		},
 		{
 			name: "SevSnp0Size",
 			setup: initWith([]abi.SevMetadataSection{
-				ovmfsev.SnpValidatedSection(ovmfsev.SevSnpValidatedStartAddr, 0),
-				ovmfsev.SnpCpuidSection(ovmfsev.SevSnpValidatedStartAddr + ovmfsev.SevSnpValidatedLength),
-				ovmfsev.SnpSecretSectionDefault(),
+				fakeovmf.SnpValidatedSection(fakeovmf.SevSnpValidatedStartAddr, 0),
+				fakeovmf.SnpCpuidSection(fakeovmf.SevSnpValidatedStartAddr + fakeovmf.SevSnpValidatedLength),
+				fakeovmf.SnpSecretSectionDefault(),
 			}),
 			want: contains("section OVMF_SECTION_TYPE_SNP_SEC_MEM has length that's not a positive multiple of a 4K page size: 0x0"),
 		},
 		{
 			name: "OverlappingSevSnp",
-			setup: initWith([]abi.SevMetadataSection{ovmfsev.SnpValidatedSection(ovmfsev.SevSnpValidatedStartAddr,
-				ovmfsev.SevSnpValidatedLength+abi.PageSize),
-				ovmfsev.SnpCpuidSection(ovmfsev.SevSnpValidatedStartAddr + ovmfsev.SevSnpValidatedLength),
-				ovmfsev.SnpSecretSectionDefault()}),
+			setup: initWith([]abi.SevMetadataSection{fakeovmf.SnpValidatedSection(fakeovmf.SevSnpValidatedStartAddr,
+				fakeovmf.SevSnpValidatedLength+abi.PageSize),
+				fakeovmf.SnpCpuidSection(fakeovmf.SevSnpValidatedStartAddr + fakeovmf.SevSnpValidatedLength),
+				fakeovmf.SnpSecretSectionDefault()}),
 			want: contains("SEV section OVMF_SECTION_TYPE_SNP_SEC_MEM: [0xff001000-0xff003000] overlaps with OVMF_SECTION_TYPE_CPUID: [0xff002000-0xff003000]"),
 		},
 		{
 			name: "OverlappingSevSnpUnknown",
 			setup: initWith([]abi.SevMetadataSection{
-				ovmfsev.SnpValidatedSection(ovmfsev.SevSnpValidatedStartAddr,
-					ovmfsev.SevSnpValidatedLength+abi.PageSize),
-				ovmfsev.SnpCpuidSectionDefault(), ovmfsev.SnpSecretSectionDefault(),
+				fakeovmf.SnpValidatedSection(fakeovmf.SevSnpValidatedStartAddr,
+					fakeovmf.SevSnpValidatedLength+abi.PageSize),
+				fakeovmf.SnpCpuidSectionDefault(), fakeovmf.SnpSecretSectionDefault(),
 				// Add an extra page of unknown type to see what that renders as.
 				{
-					Address: ovmfsev.SevSnpValidatedStartAddr + ovmfsev.SevSnpValidatedLength,
+					Address: fakeovmf.SevSnpValidatedStartAddr + fakeovmf.SevSnpValidatedLength,
 					Length:  abi.PageSize,
 					Kind:    0x420,
 				},
@@ -269,22 +269,22 @@ func TestSnpMetadataSections(t *testing.T) {
 		{
 			name: "WeirdOrder",
 			setup: initWith([]abi.SevMetadataSection{
-				ovmfsev.SnpValidatedSectionDefaultLength(ovmfsev.SevSnpSecretAddr),
-				ovmfsev.SnpCpuidSection(ovmfsev.SevSnpValidatedStartAddr),
-				ovmfsev.SnpSecretSection(ovmfsev.SevSnpCpuidAddr),
+				fakeovmf.SnpValidatedSectionDefaultLength(fakeovmf.SevSnpSecretAddr),
+				fakeovmf.SnpCpuidSection(fakeovmf.SevSnpValidatedStartAddr),
+				fakeovmf.SnpSecretSection(fakeovmf.SevSnpCpuidAddr),
 			}),
 			want: values([]abi.SevMetadataSection{
-				ovmfsev.SnpValidatedSectionDefaultLength(ovmfsev.SevSnpSecretAddr),
-				ovmfsev.SnpCpuidSection(ovmfsev.SevSnpValidatedStartAddr),
-				ovmfsev.SnpSecretSection(ovmfsev.SevSnpCpuidAddr),
+				fakeovmf.SnpValidatedSectionDefaultLength(fakeovmf.SevSnpSecretAddr),
+				fakeovmf.SnpCpuidSection(fakeovmf.SevSnpValidatedStartAddr),
+				fakeovmf.SnpSecretSection(fakeovmf.SevSnpCpuidAddr),
 			}),
 		},
 		{
 			name: "ExtractSnpOverlapWithValidAfterCpuid",
 			setup: initWith([]abi.SevMetadataSection{
-				ovmfsev.SnpValidatedSection(ovmfsev.SevSnpCpuidAddr, ovmfsev.SevSnpValidatedLength),
-				ovmfsev.SnpCpuidSection(ovmfsev.SevSnpValidatedStartAddr),
-				ovmfsev.SnpSecretSection(ovmfsev.SevSnpCpuidAddr),
+				fakeovmf.SnpValidatedSection(fakeovmf.SevSnpCpuidAddr, fakeovmf.SevSnpValidatedLength),
+				fakeovmf.SnpCpuidSection(fakeovmf.SevSnpValidatedStartAddr),
+				fakeovmf.SnpSecretSection(fakeovmf.SevSnpCpuidAddr),
 			}),
 			want: anyOf([]string{
 				"SEV section OVMF_SECTION_TYPE_SNP_SEC_MEM: [0xff003000-0xff004000] overlaps with OVMF_SECTION_TYPE_SNP_SECRETS: [0xff003000-0xff004000]",
@@ -294,8 +294,8 @@ func TestSnpMetadataSections(t *testing.T) {
 		{
 			name: "MissingSecrets",
 			setup: initWith([]abi.SevMetadataSection{
-				ovmfsev.SnpValidatedSectionDefault(),
-				ovmfsev.SnpCpuidSectionDefault(),
+				fakeovmf.SnpValidatedSectionDefault(),
+				fakeovmf.SnpCpuidSectionDefault(),
 				/* No secret section */
 			}),
 			want: contains("no secret page"),
@@ -304,17 +304,17 @@ func TestSnpMetadataSections(t *testing.T) {
 			name: "MissingValidatedStart",
 			setup: initWith([]abi.SevMetadataSection{
 				/* No validated section */
-				ovmfsev.SnpCpuidSectionDefault(),
-				ovmfsev.SnpSecretSectionDefault(),
+				fakeovmf.SnpCpuidSectionDefault(),
+				fakeovmf.SnpSecretSectionDefault(),
 			}),
 			want: contains("no proper pre-validated addresses"),
 		},
 		{
 			name: "MissingCpuid",
 			setup: initWith([]abi.SevMetadataSection{
-				ovmfsev.SnpValidatedSectionDefault(),
+				fakeovmf.SnpValidatedSectionDefault(),
 				/* No cpuid section */
-				ovmfsev.SnpSecretSectionDefault(),
+				fakeovmf.SnpSecretSectionDefault(),
 			}),
 			want: contains("no CPUID page"),
 		},
@@ -340,7 +340,7 @@ func TestSnpMetadataSections(t *testing.T) {
 		{
 			name: "ExtractSevOvmfMetadataOffsetTooLarge",
 			setup: func(f *OvmfSevDataTest) error {
-				return ovmfsev.MutateSevMetadataOffsetBlock(f.sevGUIDTableBuffer[:], func(block *abi.SevMetadataOffset) error {
+				return fakeovmf.MutateSevMetadataOffsetBlock(f.sevGUIDTableBuffer[:], func(block *abi.MetadataOffset) error {
 					// We set the SEV OVMF Metadata offset to exceed the size of the whole
 					// firmware.
 					block.Offset = sizeofSevGUIDTableBuffer + 1
@@ -354,7 +354,7 @@ func TestSnpMetadataSections(t *testing.T) {
 			setup: func(f *OvmfSevDataTest) error {
 				// This test needs a firmware image with valid GUID table with no SNP
 				// boot block.
-				return ovmfsev.MutateSevMetadataOffsetBlock(f.sevGUIDTableBuffer[:], func(block *abi.SevMetadataOffset) error {
+				return fakeovmf.MutateSevMetadataOffsetBlock(f.sevGUIDTableBuffer[:], func(block *abi.MetadataOffset) error {
 					var zeroGUID uuid.UUID
 					// Change the GUID of the SEV Metadata entry to cause the GUID mismatch.
 					block.GUIDEntry.GUID = zeroGUID
@@ -424,7 +424,7 @@ func TestExtractSevEsResetBlockValidTableWithGUID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := ovmfsev.GenerateExpectedSevResetBlockDefault()
+	want := fakeovmf.GenerateExpectedSevResetBlockDefault()
 	data := SevData{SevEs: true, SevSnp: false}
 	if err := data.ExtractFromFirmware(f.firmwareWithGUIDTable); err != nil {
 		t.Errorf("%v.ExtractFromFirmware(%v) errored unexpectedly: %v", data, f.firmwareWithGUIDTable, err)
@@ -443,7 +443,7 @@ func TestExtractSevEsResetBlockNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ovmfsev.MutateSevEsResetBlock(f.sevGUIDTableBuffer[:], func(block *opb.SevEsResetBlock, _ int) error {
+	if err := fakeovmf.MutateSevEsResetBlock(f.sevGUIDTableBuffer[:], func(block *opb.SevEsResetBlock, _ int) error {
 		// Change the GUID entry of SEV reset block to cause the GUID mismatch.
 		var zeroGUID uuid.UUID
 		block.Guid = zeroGUID[:]
@@ -465,9 +465,9 @@ func TestExtractSevEsResetBlockLengthMismatch(t *testing.T) {
 	}
 	// This test needs a firmware image with valid GUID table with wrong SEV-ES
 	// reset block size.
-	if err := ovmfsev.MutateSevEsResetBlock(f.sevGUIDTableBuffer[:], func(block *opb.SevEsResetBlock, _ int) error {
+	if err := fakeovmf.MutateSevEsResetBlock(f.sevGUIDTableBuffer[:], func(block *opb.SevEsResetBlock, _ int) error {
 		// Change the size of SEV-ES reset entry to spawn the reset of the GUIDed table.
-		block.Size = block.Size + abi.SizeofSevMetadataOffset
+		block.Size = block.Size + abi.SizeofMetadataOffset
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -484,9 +484,9 @@ func TestExtractSevOvmfMetadataOffsetMissing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ovmfsev.MutateSevEsResetBlock(f.sevGUIDTableBuffer[:], func(resetEntry *opb.SevEsResetBlock, resetBlockOffset int) error {
-		sevMetadataOffsetSlice := f.sevGUIDTableBuffer[resetBlockOffset-abi.SizeofSevMetadataOffset : resetBlockOffset]
-		sevMetadataOffset, err := abi.SevMetadataOffsetFromBytes(sevMetadataOffsetSlice)
+	if err := fakeovmf.MutateSevEsResetBlock(f.sevGUIDTableBuffer[:], func(resetEntry *opb.SevEsResetBlock, resetBlockOffset int) error {
+		sevMetadataOffsetSlice := f.sevGUIDTableBuffer[resetBlockOffset-abi.SizeofMetadataOffset : resetBlockOffset]
+		sevMetadataOffset, err := abi.MetadataOffsetFromBytes(sevMetadataOffsetSlice)
 		if err != nil {
 			return err
 		}
@@ -495,7 +495,7 @@ func TestExtractSevOvmfMetadataOffsetMissing(t *testing.T) {
 		// This is done to ensure that call to GetFwGUIDToBlockMap properly.
 		// Other alternative is to just modify the guidBlockMap directly.
 		resetEntry.Guid = sevMetadataOffset.GUIDEntry.GUID[:]
-		resetEntry.Size = resetEntry.Size + abi.SizeofSevMetadataOffset
+		resetEntry.Size = resetEntry.Size + abi.SizeofMetadataOffset
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -519,7 +519,7 @@ func TestGetRipAndCsBaseFromSevEsResetBlock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := ovmfsev.GenerateExpectedSevResetBlockDefault()
+	want := fakeovmf.GenerateExpectedSevResetBlockDefault()
 	data := SevData{SevEs: true, SevSnp: false}
 	if err := data.ExtractFromFirmware(f.firmwareWithGUIDTable); err != nil {
 		t.Errorf("%v.ExtractFromFirmware(%v) errored unexpectedly: %v", data, f.firmwareWithGUIDTable, err)
