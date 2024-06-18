@@ -6,6 +6,8 @@ github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek
 github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps=
 github.com/google/gce-tcb-verifier v0.0.0-20240610184346-1e671258aadc h1:nlrSV0FJ1rh2g/4c2OBJ0MzpY4xWQE1VxLVOBZLAIJQ=
 github.com/google/gce-tcb-verifier v0.0.0-20240610184346-1e671258aadc/go.mod h1:Jvv9i6JF1t7sDVW09zP2x+9vN3lcujtih2Zb/lVXaLs=
+github.com/google/gce-tcb-verifier v0.0.0-20240618182142-059b2c298a27 h1:dDL5m70gWGmasPc3WAEs/1geMjl6t9B/hwaKQBLJQ+k=
+github.com/google/gce-tcb-verifier v0.0.0-20240618182142-059b2c298a27/go.mod h1:Jvv9i6JF1t7sDVW09zP2x+9vN3lcujtih2Zb/lVXaLs=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/google/go-configfs-tsm v0.2.2 h1:YnJ9rXIOj5BYD7/0DNnzs8AOp7UcvjfTvt215EWcs98=
