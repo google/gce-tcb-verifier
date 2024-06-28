@@ -22,6 +22,7 @@ import (
 	"github.com/google/gce-tcb-verifier/eventlog"
 	oabi "github.com/google/gce-tcb-verifier/ovmf/abi"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
+	evpb "github.com/google/gce-tcb-verifier/proto/events"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
@@ -64,6 +65,14 @@ func TestMakeEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("makeEvents(%v) failed: %v", e, err)
 	}
+	evtpb := &evpb.Sp800155Events{}
+	if err := proto.Unmarshal(blob, evtpb); err != nil {
+		t.Fatalf("failed to unmarshal Sp800155Events: %v", err)
+	}
+	if len(evtpb.Events) != 2 {
+		t.Errorf("evtpb.TcgPcrEvent2S = %v, want length 2", evtpb.Events)
+	}
+
 	varEvt := combine([]byte("SP800-155 Event3"),
 		binary.LittleEndian.AppendUint32(nil, 11129), // PlatformManufacturerID
 		rimEFIGUID, // ReferenceManifestGuid
@@ -79,15 +88,12 @@ func TestMakeEvents(t *testing.T) {
 		[]byte{0, 0, 0, 0}, // Platform cert locator type
 		[]byte{0, 0, 0, 0}, // Platform cert length
 	)
-	wantVarLen := 154
-	if len(varEvt) != wantVarLen {
-		t.Errorf("varEvt = %v, want length %d", varEvt, wantVarLen)
+	if diff := cmp.Diff(varEvt, evtpb.Events[0]); diff != "" {
+		t.Errorf("makeEvents(%v) = %v..., want %v...: diff (-want, +got) %s", e, evtpb.Events[0], varEvt, diff)
 	}
-	if diff := cmp.Diff(varEvt, blob[:wantVarLen]); diff != "" {
-		t.Errorf("makeEvents(%v) = %v..., want %v...: diff (-want, +got) %s", e, blob[:wantVarLen], varEvt, diff)
-	}
-	wantBlobLen := 282 + wantVarLen
-	if len(blob) != wantBlobLen {
-		t.Errorf("makeEvents(%v) = %v, want length %d", e, len(blob), wantBlobLen)
+	wantURILen := 282
+	uri := evtpb.Events[1]
+	if len(uri) != wantURILen {
+		t.Errorf("makeEvents(%v)[1] = %v, want length %d", e, evtpb.Events[1], wantURILen)
 	}
 }

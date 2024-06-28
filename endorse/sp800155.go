@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/gce-tcb-verifier/eventlog"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
+	evpb "github.com/google/gce-tcb-verifier/proto/events"
 	"github.com/google/gce-tcb-verifier/verify"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
@@ -99,5 +100,8 @@ func makeEvents(random io.Reader, endorsement *epb.VMLaunchEndorsement) ([]byte,
 	if err != nil {
 		return nil, err
 	}
-	return append(varEvt, uriEvt...), nil
+	evts := &evpb.Sp800155Events{
+		Events: [][]byte{varEvt, uriEvt},
+	}
+	return proto.Marshal(evts)
 }

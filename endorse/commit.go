@@ -268,7 +268,7 @@ func snapshotEndorsement(ctx context.Context, cops ChangeOps, endorsement *epb.V
 	}
 	fwPath := ec.VCS.ReleasePath(ctx, path.Join(ec.SnapshotDir, ec.ImageName))
 	sigPath := fmt.Sprintf("%s.signed", fwPath)
-	evtsPath := fmt.Sprintf("%s.evts", fwPath)
+	evtsPath := fmt.Sprintf("%s.evts.pb", fwPath)
 	if err := writeEndorsement(ctx, sigPath, endorsement, cops); err != nil {
 		return err
 	}

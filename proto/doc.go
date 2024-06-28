@@ -62,6 +62,7 @@ package proto
 
 //go:generate protoc --go_out=. --go_opt=module=github.com/google/gce-tcb-verifier/proto certificates.proto
 //go:generate protoc -I$PROTOC_INSTALL_DIR/include -I=. --go_out=. --go_opt=module=github.com/google/gce-tcb-verifier/proto endorsement.proto
+//go:generate protoc --go_out=. --go_opt=module=github.com/google/gce-tcb-verifier/proto events.proto
 //go:generate protoc --go_out=. --go_opt=module=github.com/google/gce-tcb-verifier/proto ovmf.proto
 //go:generate protoc -I$PROTOC_INSTALL_DIR/include -I=. --go_out=. --go_opt=module=github.com/google/gce-tcb-verifier/proto releases.proto
 //go:generate protoc --go_out=. --go_opt=module=github.com/google/gce-tcb-verifier/proto scrtmversion.proto
