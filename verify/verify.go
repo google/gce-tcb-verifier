@@ -25,6 +25,7 @@ import (
 
 	"github.com/google/gce-tcb-verifier/extract/extractsev"
 	"github.com/google/gce-tcb-verifier/sev"
+	"github.com/google/gce-tcb-verifier/timeproto"
 	"github.com/google/go-sev-guest/abi"
 	"google.golang.org/protobuf/proto"
 
@@ -41,6 +42,10 @@ var (
 	ErrNoSevSnpMeasurements = errors.New("golden measurement does not have SEV-SNP measurements")
 	// ErrNoEndorsementCert is returned when a launch endorsement's Cert field is empty.
 	ErrNoEndorsementCert = errors.New("endorsement certificate is empty")
+	// Provenance information was lost between January and May due to a change in the release process.
+	// Signing time differs from release candidate cut time, so the April release still has signatures
+	// from June. Set a start date of July 1, 2024.
+	uefiReleaseChangeDate = time.Date(2024, time.July, 1, 0, 0, 0, 0, time.UTC)
 )
 
 const gcsBaseURL = "https://storage.googleapis.com"
@@ -129,7 +134,8 @@ func EndorsementProto(endorsement *epb.VMLaunchEndorsement, opts *Options) error
 		return fmt.Errorf("could not unmarshal golden measurement: %v", err)
 	}
 
-	if golden.ClSpec == 0 && len(golden.Commit) == 0 {
+	checkProvenance := timeproto.From(golden.GetTimestamp()).After(uefiReleaseChangeDate)
+	if checkProvenance && golden.ClSpec == 0 && len(golden.Commit) == 0 {
 		return fmt.Errorf("missing provenance information")
 	}
 
