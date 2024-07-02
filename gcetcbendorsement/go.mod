@@ -3,7 +3,7 @@ module github.com/google/gce-tcb-verifier/gcetcbendorsement
 go 1.20
 
 require (
-	github.com/google/gce-tcb-verifier v0.0.0-20240610184346-1e671258aadc
+	github.com/google/gce-tcb-verifier v0.0.0-20240618182142-059b2c298a27
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-sev-guest v0.11.1
 	github.com/google/go-tpm-tools v0.4.4
