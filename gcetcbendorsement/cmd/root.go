@@ -18,6 +18,9 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
 	"time"
 
 	"github.com/google/gce-tcb-verifier/extract"
@@ -65,18 +68,57 @@ func MakeRoot(ctx0 context.Context) *cobra.Command {
 	cmd.AddCommand(makeInspect(ctx0))
 	cmd.AddCommand(makeVerify(ctx0))
 	cmd.AddCommand(makeSevCommand(ctx0))
+	cmd.SetContext(ctx0)
 	return cmd
+}
 
+type bearerGetter struct {
+	token string
+}
+
+func (b *bearerGetter) Get(url string) ([]byte, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request for %q: %v", url, err)
+	}
+	req.Header.Set("Authorization", "Bearer "+b.token)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %q: %v", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("failed to get %q: %v", url, resp.Status)
+	}
+	return io.ReadAll(resp.Body)
 }
 
 func init() {
+	var bearer string
 	RootCmd = MakeRoot(context.WithValue(context.Background(), backendKey, &Backend{
 		Provider: &extract.ConfigfsTsmQuoteProvider{},
-		Getter:   trust.DefaultHTTPSGetter(),
+		Getter: &trust.RetryHTTPSGetter{
+			Timeout:       2 * time.Minute,
+			MaxRetryDelay: 30 * time.Second,
+			Getter:        trust.DefaultHTTPSGetter(),
+		},
 		MakeEfiVariableReader: func(path string) exel.VariableReader {
 			return exel.MakeEfiVarFSReader(path)
 		},
 		Now: time.Now(),
 		IO:  OSIO{},
 	}))
+	RootCmd.PersistentFlags().StringVar(&bearer, "auth_token", "", "Bearer token to use for HTTP requests.")
+	RootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		if bearer == "" {
+			return
+		}
+		b, _ := backendFrom(cmd.Context())
+		b.Getter = &trust.RetryHTTPSGetter{
+			Timeout:       2 * time.Minute,
+			MaxRetryDelay: 30 * time.Second,
+			Getter:        &bearerGetter{token: bearer},
+		}
+	}
+	RootCmd.TraverseChildren = true
 }
