@@ -291,6 +291,9 @@ func snapshotEndorsement(ctx context.Context, cops ChangeOps, endorsement *epb.V
 	if err := cops.SetBinaryWritable(ctx, fwPath); err != nil {
 		return fmt.Errorf("could not set %q type to binary: %w", fwPath, err)
 	}
+	if err := cops.SetBinaryWritable(ctx, evtsPath); err != nil {
+		return fmt.Errorf("could not set %q type to binary: %w", evtsPath, err)
+	}
 	return nil
 }
 
