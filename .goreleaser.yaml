@@ -1,0 +1,25 @@
+version: 2
+builds:
+  - main: ./gcetcbendorsement/cli
+    id: "gcetcbendorsement"
+    binary: gcetcbendorsement
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    goarch:
+      - amd64
+      - arm64
+    goos:
+      - linux
+      - darwin
+      - windows
+
+  - main: ./cmd/nonprod
+    id: "endorsenonprod"
+    binary: endorsenonprod
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    goarch:
+      - amd64
+      - arm64
+    goos:
+      - linux
+      - darwin
+      - windows
