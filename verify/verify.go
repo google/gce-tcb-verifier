@@ -42,6 +42,8 @@ var (
 	ErrNoSevSnpMeasurements = errors.New("golden measurement does not have SEV-SNP measurements")
 	// ErrNoEndorsementCert is returned when a launch endorsement's Cert field is empty.
 	ErrNoEndorsementCert = errors.New("endorsement certificate is empty")
+	// ErrNoRootsOfTrust is returned when endorsement signature verification is not given any roots of trust.
+	ErrNoRootsOfTrust = errors.New("endorsement certificate roots of trust are empty")
 	// Provenance information was lost between January and May due to a change in the release process.
 	// Signing time differs from release candidate cut time, so the April release still has signatures
 	// from June. Set a start date of July 1, 2024.
@@ -78,7 +80,9 @@ type Options struct {
 	RootsOfTrust       *x509.CertPool
 	ExpectedUefiSha384 []byte
 	Now                time.Time
-	Getter             HTTPSGetter
+	// If endorsement is provided outside of the auxblob, use it.
+	Endorsement *epb.VMLaunchEndorsement
+	Getter      HTTPSGetter
 }
 
 // SNPValidateFunc returns a validation function that can be used with go-sev-guest on an
@@ -101,7 +105,7 @@ func SNPFamilyValidateFunc(familyID string, opts *Options) func(*spb.Attestation
 		if len(measurement) != abi.MeasurementSize {
 			return fmt.Errorf("measurement size is %d, want %d", len(measurement), abi.MeasurementSize)
 		}
-		if serializedEndorsement == nil {
+		if serializedEndorsement == nil && opts.Endorsement == nil {
 			if opts.Getter == nil {
 				return fmt.Errorf("endorsement getter is nil")
 			}
@@ -113,6 +117,10 @@ func SNPFamilyValidateFunc(familyID string, opts *Options) func(*spb.Attestation
 
 		}
 		opts.SNP.Measurement = measurement
+		// Prefer the endorsement provided by the caller.
+		if opts.Endorsement != nil {
+			return EndorsementProto(opts.Endorsement, opts)
+		}
 		return Endorsement(serializedEndorsement, opts)
 	}
 }
@@ -212,6 +220,9 @@ func SNP(golden *epb.VMGoldenMeasurement, opts *SNPOptions) error {
 func CheckCertificate(certder []byte, rootsOfTrust *x509.CertPool, now time.Time) (*x509.Certificate, error) {
 	if len(certder) == 0 {
 		return nil, ErrNoEndorsementCert
+	}
+	if rootsOfTrust == nil {
+		return nil, ErrNoRootsOfTrust
 	}
 	cert, err := x509.ParseCertificate(certder)
 	if err != nil {

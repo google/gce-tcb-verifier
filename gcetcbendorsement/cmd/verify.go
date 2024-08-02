@@ -17,6 +17,7 @@ package cmd
 import (
 	"context"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"os"
 
@@ -27,11 +28,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var errNoGetter = errors.New("getter was nil")
+
 type verifyCommand struct {
 	root        string
 	show        bool
 	endorsement *epb.VMLaunchEndorsement
-	rot         *x509.CertPool
 }
 
 type verifyKeyType struct{}
@@ -55,10 +57,6 @@ func (c *verifyCommand) persistentPreRunE(cmd *cobra.Command, args []string) err
 		if err := proto.Unmarshal(bin, c.endorsement); err != nil {
 			return fmt.Errorf("failed to unmarshal endorsement at %q: %w", args[0], err)
 		}
-		c.rot, err = rootOfTrust(cmd.Context(), c.root)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -73,6 +71,9 @@ func rootOfTrust(ctx context.Context, root string) (*x509.CertPool, error) {
 	if root != "" {
 		data, err = backend.IO.ReadFile(root)
 	} else {
+		if backend.Getter == nil {
+			return nil, errNoGetter
+		}
 		data, err = backend.Getter.Get(gcetcbendorsement.DefaultRootURL)
 	}
 	if err != nil {
@@ -109,10 +110,15 @@ func (c *verifyCommand) runE(cmd *cobra.Command, args []string) error {
 		)
 		return err
 	}
+	rot, err := rootOfTrust(cmd.Context(), c.root)
+	if err != nil {
+		return err
+	}
+
 	return verify.EndorsementProto(c.endorsement, &verify.Options{
 		Now:          backend.Now,
 		Getter:       backend.Getter,
-		RootsOfTrust: c.rot,
+		RootsOfTrust: rot,
 	})
 }
 
