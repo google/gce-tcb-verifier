@@ -26,7 +26,9 @@ import (
 	"github.com/google/gce-tcb-verifier/extract"
 	exel "github.com/google/gce-tcb-verifier/extract/eventlog"
 	"github.com/google/gce-tcb-verifier/verify"
+	"github.com/google/go-sev-guest/client"
 	"github.com/google/go-sev-guest/verify/trust"
+	"github.com/google/logger"
 	"github.com/spf13/cobra"
 )
 
@@ -95,8 +97,13 @@ func (b *bearerGetter) Get(url string) ([]byte, error) {
 
 func init() {
 	var bearer string
+	var timeout time.Duration
+	p, err := client.GetQuoteProvider()
+	if err != nil {
+		logger.Fatalf("Failed to get quote provider: %v", err)
+	}
 	RootCmd = MakeRoot(context.WithValue(context.Background(), backendKey, &Backend{
-		Provider: &extract.ConfigfsTsmQuoteProvider{},
+		Provider: p,
 		Getter: &trust.RetryHTTPSGetter{
 			Timeout:       2 * time.Minute,
 			MaxRetryDelay: 30 * time.Second,
@@ -109,13 +116,14 @@ func init() {
 		IO:  OSIO{},
 	}))
 	RootCmd.PersistentFlags().StringVar(&bearer, "auth_token", "", "Bearer token to use for HTTP requests.")
+	RootCmd.PersistentFlags().DurationVar(&timeout, "timeout", 2*time.Minute, "Timeout for HTTPS GET requests")
 	RootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		if bearer == "" {
 			return
 		}
 		b, _ := backendFrom(cmd.Context())
 		b.Getter = &trust.RetryHTTPSGetter{
-			Timeout:       2 * time.Minute,
+			Timeout:       timeout,
 			MaxRetryDelay: 30 * time.Second,
 			Getter:        &bearerGetter{token: bearer},
 		}
