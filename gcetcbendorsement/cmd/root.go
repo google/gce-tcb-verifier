@@ -104,11 +104,6 @@ func init() {
 	}
 	RootCmd = MakeRoot(context.WithValue(context.Background(), backendKey, &Backend{
 		Provider: p,
-		Getter: &trust.RetryHTTPSGetter{
-			Timeout:       2 * time.Minute,
-			MaxRetryDelay: 30 * time.Second,
-			Getter:        trust.DefaultHTTPSGetter(),
-		},
 		MakeEfiVariableReader: func(path string) exel.VariableReader {
 			return exel.MakeEfiVarFSReader(path)
 		},
@@ -118,14 +113,17 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&bearer, "auth_token", "", "Bearer token to use for HTTP requests.")
 	RootCmd.PersistentFlags().DurationVar(&timeout, "timeout", 2*time.Minute, "Timeout for HTTPS GET requests")
 	RootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		var baseGetter verify.HTTPSGetter
 		if bearer == "" {
-			return
+			baseGetter = &trust.SimpleHTTPSGetter{}
+		} else {
+			baseGetter = &bearerGetter{token: bearer}
 		}
 		b, _ := backendFrom(cmd.Context())
 		b.Getter = &trust.RetryHTTPSGetter{
 			Timeout:       timeout,
 			MaxRetryDelay: 30 * time.Second,
-			Getter:        &bearerGetter{token: bearer},
+			Getter:        baseGetter,
 		}
 	}
 	RootCmd.TraverseChildren = true
