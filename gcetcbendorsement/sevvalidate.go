@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/gce-tcb-verifier/cmd/output"
 	"github.com/google/gce-tcb-verifier/extract/extractsev"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
 	"github.com/google/gce-tcb-verifier/sev"
@@ -84,6 +85,7 @@ func SevValidate(ctx context.Context, attestation *spb.Attestation, opts *SevVal
 	var err error
 	endorsement := opts.Endorsement
 	if endorsement == nil {
+		output.Infof(ctx, "Extracting endorsement from attestation")
 		endorsement, err = extractEndorsement(attestation, opts)
 		if err != nil {
 			return err
@@ -110,6 +112,7 @@ func SevValidate(ctx context.Context, attestation *spb.Attestation, opts *SevVal
 				RootsOfTrust: opts.RootsOfTrust,
 				Now:          opts.Now,
 				Getter:       opts.Getter,
+				Endorsement:  endorsement,
 			})},
 	}
 	return validate.SnpAttestation(attestation, vopts)

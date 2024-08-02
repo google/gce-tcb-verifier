@@ -78,7 +78,9 @@ type Options struct {
 	RootsOfTrust       *x509.CertPool
 	ExpectedUefiSha384 []byte
 	Now                time.Time
-	Getter             HTTPSGetter
+	// If endorsement is provided outside of the auxblob, use it.
+	Endorsement *epb.VMLaunchEndorsement
+	Getter      HTTPSGetter
 }
 
 // SNPValidateFunc returns a validation function that can be used with go-sev-guest on an
@@ -101,7 +103,7 @@ func SNPFamilyValidateFunc(familyID string, opts *Options) func(*spb.Attestation
 		if len(measurement) != abi.MeasurementSize {
 			return fmt.Errorf("measurement size is %d, want %d", len(measurement), abi.MeasurementSize)
 		}
-		if serializedEndorsement == nil {
+		if serializedEndorsement == nil && opts.Endorsement == nil {
 			if opts.Getter == nil {
 				return fmt.Errorf("endorsement getter is nil")
 			}
@@ -113,6 +115,10 @@ func SNPFamilyValidateFunc(familyID string, opts *Options) func(*spb.Attestation
 
 		}
 		opts.SNP.Measurement = measurement
+		// Prefer the endorsement provided by the caller.
+		if opts.Endorsement != nil {
+			return EndorsementProto(opts.Endorsement, opts)
+		}
 		return Endorsement(serializedEndorsement, opts)
 	}
 }
