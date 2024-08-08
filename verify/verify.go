@@ -45,9 +45,11 @@ var (
 	// ErrNoRootsOfTrust is returned when endorsement signature verification is not given any roots of trust.
 	ErrNoRootsOfTrust = errors.New("endorsement certificate roots of trust are empty")
 	// Provenance information was lost between January and May due to a change in the release process.
-	// Signing time differs from release candidate cut time, so the April release still has signatures
-	// from June. Set a start date of July 1, 2024.
-	uefiReleaseChangeDate = time.Date(2024, time.July, 1, 0, 0, 0, 0, time.UTC)
+	// Then a firmware experiment released without signatures for a May firmware that was signed on
+	// August 1st.
+	// Signing time differs from release candidate cut time, so the May release has signatures from
+	// August. Set a start date of August 2, 2024.
+	uefiReleaseChangeDate = time.Date(2024, time.August, 2, 0, 0, 0, 0, time.UTC)
 )
 
 const gcsBaseURL = "https://storage.googleapis.com"
