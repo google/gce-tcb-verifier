@@ -534,7 +534,7 @@ func TestRootPathDerivation(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// A new rootCmd is needed for a new instance of flags.
-			app := memkmLocalcaBootstrapped()
+			app := memkmLocalca()
 			app.Bootstrap = &cmd.PartialComponent{
 				FInitContext: func(ctx context.Context) (context.Context, error) {
 					c, err := keys.FromContext(ctx)
@@ -555,17 +555,20 @@ func TestRootPathDerivation(t *testing.T) {
 			certdir := t.TempDir()
 			emptyManifest(t, certdir)
 			opts := &devkeys.Options{
-				Bucket: "foobucket", CertRoot: t.TempDir(), CertDir: "signer_certs", KeyDir: t.TempDir(),
+				Bucket: "foobucket", CertRoot: certdir, CertDir: "signer_certs", KeyDir: t.TempDir(),
 			}
 			if err := devkeys.DumpTo(opts); err != nil {
 				t.Fatal(err)
 			}
 			args := append(tc.args, "--bucket=foobucket", "--bucket_root", opts.CertRoot, "--cert_dir",
-				opts.CertDir)
+				opts.CertDir, "--keep_going")
 			rootCmd.SetArgs(args)
-			err := rootCmd.Execute()
-			if err == nil || !strings.Contains(err.Error(), tc.want) {
-				t.Errorf("`%s` errored unexpectedly: %v, want %q", strings.Join(tc.args, " "), err, tc.want)
+			if err := rootCmd.Execute(); err != nil {
+				t.Errorf("`%s` errored unexpectedly: %v, want nil", strings.Join(tc.args, " "), err)
+			}
+			wantPath := path.Join(certdir, "foobucket", tc.want)
+			if _, err := os.Stat(wantPath); err != nil {
+				t.Fatalf("Expected root cert %s to exist, but it does not: %v", wantPath, err)
 			}
 		})
 	}

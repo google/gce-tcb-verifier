@@ -19,7 +19,6 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -41,12 +40,6 @@ import (
 
 // ManifestObjectName is the objectName for the CA's key manifest file.
 const ManifestObjectName = "keyManifest.textproto"
-
-var (
-	// ErrKeyExists is the error that Finalize returns if a mutation attempts to add an existing key and
-	// Overwrite is not true.
-	ErrKeyExists = errors.New("key exists in certificate authority")
-)
 
 // CertificateAuthority implements both the sign.CertificateAuthority interface with GCS backing,
 // and cmd.CommandComponent
@@ -161,31 +154,48 @@ func (ca *CertificateAuthority) Finalize(ctx context.Context, m styp.Certificate
 	if err != nil {
 		return err
 	}
-	if mut.primaryRootVersion != nil {
+	var manifestChanges bool
+	if mut.primaryRootVersion != nil && manifest.PrimaryRootKeyVersionName != *mut.primaryRootVersion {
+		manifestChanges = true
 		manifest.PrimaryRootKeyVersionName = *mut.primaryRootVersion
 	}
-	if mut.primarySigningVersion != nil {
+	if mut.primarySigningVersion != nil && manifest.PrimarySigningKeyVersionName != *mut.primarySigningVersion {
+		manifestChanges = true
 		manifest.PrimarySigningKeyVersionName = *mut.primarySigningVersion
 	}
-	var wroteAny bool
+	var names []string
 	for keyVersionName, cert := range mut.certs {
-		wrote, err := ca.upload(ctx, manifest, keyVersionName, cert)
+		name, err := ca.upload(ctx, manifest, keyVersionName, cert)
 		if err != nil {
 			return fmt.Errorf("could not upload certificate for key %q: %w", keyVersionName, err)
 		}
-		wroteAny = wroteAny || wrote
+		if name != nil {
+			manifestChanges = true
+			switch n := name.(type) {
+			case *overwritten:
+				names = append(names, n.name)
+			}
+		}
 	}
 
 	// update the root cert if needed
 	if mut.rootCert != nil {
-		wrote, err := ca.writeIfAllowed(ctx, ca.RootPath, certPemBytes(mut.rootCert))
+		fmt.Println("Root cert path", ca.RootPath)
+		exists, err := ca.writeIfAllowed(ctx, ca.RootPath, certPemBytes(mut.rootCert))
 		if err != nil {
 			return err
 		}
-		wroteAny = wroteAny || wrote
+		if exists {
+			names = append(names, ca.RootPath)
+		}
 	}
-	if wroteAny {
-		return ca.writeManifest(ctx)
+	if manifestChanges {
+		if err := ca.writeManifest(ctx); err != nil {
+			return err
+		}
+	}
+	if len(names) > 0 && !output.AllowOverwrite(ctx) && !output.AllowRecoverableError(ctx) {
+		return fmt.Errorf("--overwrite=false disallowed overwriting objects %v", names)
 	}
 	return nil
 }
@@ -197,13 +207,13 @@ func (ca *CertificateAuthority) writeIfAllowed(ctx context.Context, path string,
 	}
 	if exists && !output.AllowOverwrite(ctx) {
 		if !output.AllowRecoverableError(ctx) {
-			return false, status.Errorf(codes.AlreadyExists, "object %q exists, overwrite not enabled",
+			return true, status.Errorf(codes.AlreadyExists, "object %q exists, overwrite not enabled",
 				path)
 		}
 		// Don't overwrite. Just keep going.
-		return false, nil
+		return exists, nil
 	}
-	return true, stops.WriteFile(ctx, ca.Storage, ca.PrivateBucket, path, data)
+	return exists, stops.WriteFile(ctx, ca.Storage, ca.PrivateBucket, path, data)
 }
 
 func (ca *CertificateAuthority) getManifest(ctx context.Context) (*cpb.GCECertificateManifest, error) {
@@ -318,36 +328,52 @@ func certPemBytes(cert *x509.Certificate) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
 }
 
+type overwritten struct {
+	name string
+}
+
+type newobj struct {
+	name string
+}
+
 // upload uploads the given x.509 certificate for the named key to the GCS private bucket,
-// and updates the given manifest to reflect the created object's entry. Returns whether any writes
-// happened and any errors.
-func (ca *CertificateAuthority) upload(ctx context.Context, manifest *cpb.GCECertificateManifest, keyVersionName string, cert *x509.Certificate) (bool, error) {
+// and updates the given manifest to reflect the created object's entry. Returns whether any manifest
+// changes happened and any errors.
+func (ca *CertificateAuthority) upload(ctx context.Context, manifest *cpb.GCECertificateManifest, keyVersionName string, cert *x509.Certificate) (any, error) {
+	var name string
+	if cert == nil {
+		return nil, fmt.Errorf("certificate for %s is nil", keyVersionName)
+	}
 	entry := getEntry(manifest, keyVersionName)
 	if entry != nil {
+		name = entry.ObjectPath
 		if output.AllowRecoverableError(ctx) {
-			return false, nil
-		}
-		if !output.AllowOverwrite(ctx) {
-			return false, ErrKeyExists
+			return &overwritten{name: name}, nil
 		}
 		output.Warningf(ctx, "key version exists in manifest %v -> %v", keyVersionName, entry.GetObjectPath())
+	} else {
+		name = ca.certObjectName(cert)
 	}
-	name := ca.certObjectName(cert)
 	// The non-root certificates are expected to be in DER format. See the CertificateAuthority
 	// interface.
-	wrote, err := ca.writeIfAllowed(ctx, name, cert.Raw)
+	exists, err := ca.writeIfAllowed(ctx, name, cert.Raw)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	// The key is fresh, so add it to the manifest.
-	if entry == nil && wrote {
+	if entry == nil {
 		entries := append(manifest.Entries, &cpb.GCECertificateManifest_Entry{
 			KeyVersionName: keyVersionName,
 			ObjectPath:     name,
 		})
 		manifest.Entries = entries
 	}
-	return wrote, nil
+	if exists {
+		fmt.Println("OVERWRITE", name)
+		return &overwritten{name: name}, nil
+	}
+	fmt.Println("NEWOBJ", name)
+	return &newobj{name: name}, nil
 }
 
 // getEntry returns the GCECertificateManifest_Entry whose key_version_name equals keyVersionName,
