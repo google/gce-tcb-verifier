@@ -312,12 +312,14 @@ func TestSNPValidateFunc(t *testing.T) {
 	attestation.Report.CommittedTcb = 0x4405000000000002
 
 	for _, tc := range tests {
-		if err := validate.SnpAttestation(attestation, &validate.Options{
-			GuestPolicy: abi.SnpPolicy{Debug: true},
-			CertTableOptions: map[string]*validate.CertEntryOption{
-				sev.GCEFwCertGUID: tc.opt,
-			}}); !match.Error(err, tc.wantErr) {
-			t.Errorf("validate.SnpAttestation(...SNPValidateFunc(%v)...) = %v, want %q", tc.opt, err, tc.wantErr)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			if err := validate.SnpAttestation(attestation, &validate.Options{
+				GuestPolicy: abi.SnpPolicy{Debug: true},
+				CertTableOptions: map[string]*validate.CertEntryOption{
+					sev.GCEFwCertGUID: tc.opt,
+				}}); !match.Error(err, tc.wantErr) {
+				t.Errorf("validate.SnpAttestation(...SNPValidateFunc(%v)...) = %v, want %q", tc.opt, err, tc.wantErr)
+			}
+		})
 	}
 }

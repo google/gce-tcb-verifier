@@ -281,13 +281,18 @@ func TestUploadToPrivate(t *testing.T) {
 		{
 			name:           "used key",
 			keyVersionName: "key",
+			cert:           &x509.Certificate{},
 			prefix:         "ignored",
-			initialObjects: map[string][]byte{ManifestObjectName: manifestContents},
-			wantErr:        ErrKeyExists.Error(),
+			initialObjects: map[string][]byte{
+				"certs/fr1st.crt":  {0xf},
+				ManifestObjectName: manifestContents,
+			},
+			wantErr: "exists",
 		},
 		{
 			name:           "used key keep going",
 			keyVersionName: "key",
+			cert:           &x509.Certificate{},
 			prefix:         "ignored",
 			initialObjects: map[string][]byte{ManifestObjectName: manifestContents},
 			ctx:            output.NewContext(ctx, &output.Options{KeepGoing: true}),

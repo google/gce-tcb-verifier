@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/gce-tcb-verifier/cmd/output"
 	"github.com/google/gce-tcb-verifier/keys"
+	"github.com/google/gce-tcb-verifier/rotate"
 	"github.com/google/gce-tcb-verifier/sign/gcsca"
 	sops "github.com/google/gce-tcb-verifier/sign/ops"
 	"github.com/google/gce-tcb-verifier/storage/local"
@@ -76,8 +77,11 @@ func (ca *T) InitContext(ctx context.Context) (context.Context, error) {
 	if err := os.Mkdir(certsPath, 0755); err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("failed to create %q: %v", certsPath, err)
 	}
-	if err := ca.checkCerts(ctx); err != nil {
-		return nil, err
+	// Only check CA certs if not bootstrapping.
+	if _, err := rotate.FromBootstrapContext(ctx); err != nil {
+		if err := ca.checkCerts(ctx); err != nil {
+			return nil, err
+		}
 	}
 	return ca.CA.InitContext(ctx)
 }
