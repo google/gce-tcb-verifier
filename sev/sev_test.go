@@ -215,11 +215,7 @@ func TestDoReserved(t *testing.T) {
 	for _, tc := range tests {
 		err := doReserved(tc.name, tc.protobytes, tc.data, tc.lo, tc.hi)
 		if !match.Error(err, tc.wantErr) {
-			var wantErrFormatted error
-			if tc.wantErr != "" {
-				wantErrFormatted = fmt.Errorf(tc.wantErr)
-			}
-			t.Errorf("doReserved(%s, %v, %v, %d, %d) did not error as expected. Got %v, want %v", tc.name, tc.protobytes, tc.data, tc.lo, tc.hi, err, wantErrFormatted)
+			t.Errorf("doReserved(%s, %v, %v, %d, %d) did not error as expected. Got %v, want %v", tc.name, tc.protobytes, tc.data, tc.lo, tc.hi, err, tc.wantErr)
 		}
 	}
 }
