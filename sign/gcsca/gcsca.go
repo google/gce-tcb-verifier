@@ -180,7 +180,6 @@ func (ca *CertificateAuthority) Finalize(ctx context.Context, m styp.Certificate
 
 	// update the root cert if needed
 	if mut.rootCert != nil {
-		fmt.Println("Root cert path", ca.RootPath)
 		exists, err := ca.writeIfAllowed(ctx, ca.RootPath, certPemBytes(mut.rootCert))
 		if err != nil {
 			return err
@@ -200,6 +199,10 @@ func (ca *CertificateAuthority) Finalize(ctx context.Context, m styp.Certificate
 	return nil
 }
 
+// Writes data in path in the private bucket only if the context allows for it.
+// The bool result is whether the path already existed.
+// If the context does not allow overwriting and doesn't use --keep_going, then returns an error.
+// If writing fails for whatever reason, returns an error.
 func (ca *CertificateAuthority) writeIfAllowed(ctx context.Context, path string, data []byte) (bool, error) {
 	exists, err := ca.Storage.Exists(ctx, ca.PrivateBucket, path)
 	if err != nil {
@@ -337,8 +340,9 @@ type newobj struct {
 }
 
 // upload uploads the given x.509 certificate for the named key to the GCS private bucket,
-// and updates the given manifest to reflect the created object's entry. Returns whether any manifest
-// changes happened and any errors.
+// and updates the given manifest to reflect the created object's entry. Returns an object representing
+// which object was written (nil if none). If the object previously existed, returns an *overwritten.
+// If the object is new, returns a *newobj.
 func (ca *CertificateAuthority) upload(ctx context.Context, manifest *cpb.GCECertificateManifest, keyVersionName string, cert *x509.Certificate) (any, error) {
 	var name string
 	if cert == nil {
@@ -369,10 +373,8 @@ func (ca *CertificateAuthority) upload(ctx context.Context, manifest *cpb.GCECer
 		manifest.Entries = entries
 	}
 	if exists {
-		fmt.Println("OVERWRITE", name)
 		return &overwritten{name: name}, nil
 	}
-	fmt.Println("NEWOBJ", name)
 	return &newobj{name: name}, nil
 }
 
