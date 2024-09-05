@@ -231,7 +231,7 @@ func CheckCertificate(certder []byte, rootsOfTrust *x509.CertPool, now time.Time
 		return nil, fmt.Errorf("could not parse certificate: %v", err)
 	}
 	if _, err := cert.Verify(x509.VerifyOptions{Roots: rootsOfTrust, CurrentTime: now}); err != nil {
-		return nil, fmt.Errorf("key %v was not signed by a root of trust: %v", cert.Subject, err)
+		return nil, fmt.Errorf("could not verify key with subject %q has a valid signature from a root of trust: %v", cert.Subject, err)
 	}
 	return cert, nil
 }

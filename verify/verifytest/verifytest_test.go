@@ -217,7 +217,7 @@ func TestVerify(t *testing.T) {
 			endorsement: endorsement,
 			pool:        badpool,
 			snp:         &verify.SNPOptions{},
-			wantErr:     "was not signed by a root of trust",
+			wantErr:     "could not verify key with subject",
 		},
 		{
 			name:        "no cert",
