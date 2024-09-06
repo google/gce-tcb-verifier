@@ -19,41 +19,32 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/gce-tcb-verifier/extract"
 	"github.com/google/gce-tcb-verifier/gcetcbendorsement"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
-	cpb "github.com/google/go-sev-guest/proto/check"
-	tpmpb "github.com/google/go-tpm-tools/proto/attest"
+	cpb "github.com/google/go-tdx-guest/proto/checkconfig"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
 var (
-	errNoSevPolicy  = errors.New("sev command not found in context")
-	errNoSevCommand = errors.New("sev sub-command must be used")
+	errNoTdxPolicy  = errors.New("tdx command not found in context")
+	errNoTdxCommand = errors.New("tdx sub-command must be used")
 )
 
-const (
-	outformUsage = `One of textproto|bin|hex|base64|auto.
-  Outputs the policy as either textproto or serialized binary proto in raw binary, or encoded
-  as hex or base64. Auto means the default is textproto if writing to a terminal, otherwise bin.`
-)
-
-type sevCommand struct {
-	overwrite             bool
-	base                  string
-	launchVmsas           uint32
-	allowUnspecifiedVmsas bool
+type tdxCommand struct {
+	overwrite bool
+	base      string
+	ramGiB    int
 	// derived
 	basePolicy *cpb.Policy
 }
 
-type sevKeyType struct{}
+type tdxKeyType struct{}
 
-var sevKey sevKeyType
+var tdxKey tdxKeyType
 
-type sevPolicyCommand struct {
+type tdxPolicyCommand struct {
 	out     string
 	outform string
 	// derived
@@ -62,7 +53,7 @@ type sevPolicyCommand struct {
 	endorsement *epb.VMLaunchEndorsement
 }
 
-type sevValidateCommand struct {
+type tdxValidateCommand struct {
 	endorsementPath string
 	root            string
 	// derived
@@ -70,21 +61,21 @@ type sevValidateCommand struct {
 	endorsement *epb.VMLaunchEndorsement
 }
 
-func sevFrom(ctx context.Context) (*sevCommand, error) {
-	if c, ok := ctx.Value(sevKey).(*sevCommand); ok {
+func tdxFrom(ctx context.Context) (*tdxCommand, error) {
+	if c, ok := ctx.Value(tdxKey).(*tdxCommand); ok {
 		return c, nil
 	}
-	return nil, errNoSevPolicy
+	return nil, errNoTdxPolicy
 }
 
-func (c *sevPolicyCommand) persistentPreRunE(cmd *cobra.Command, args []string) error {
+func (c *tdxPolicyCommand) persistentPreRunE(cmd *cobra.Command, args []string) error {
 	backend, err := backendFrom(cmd.Context())
 	if err != nil {
 		return err
 	}
 	// Check positional argument
 	if len(args) != 1 {
-		return fmt.Errorf("sev-policy expects exactly one positional argument, got %d", len(args))
+		return fmt.Errorf("tdx-policy expects exactly one positional argument, got %d", len(args))
 	}
 	if c.outform == "textproto" {
 		c.textproto = true
@@ -104,23 +95,22 @@ func (c *sevPolicyCommand) persistentPreRunE(cmd *cobra.Command, args []string) 
 	return nil
 }
 
-func (c *sevPolicyCommand) runE(cmd *cobra.Command, args []string) error {
+func (c *tdxPolicyCommand) runE(cmd *cobra.Command, args []string) error {
 	backend, err := backendFrom(cmd.Context())
 	if err != nil {
 		return err
 	}
-	s, err := sevFrom(cmd.Context())
+	s, err := tdxFrom(cmd.Context())
 	if err != nil {
 		return err
 	}
-	policy, err := gcetcbendorsement.SevPolicy(cmd.Context(), c.endorsement, &gcetcbendorsement.SevPolicyOptions{
-		Base:                  s.basePolicy,
-		Overwrite:             s.overwrite,
-		LaunchVmsas:           s.launchVmsas,
-		AllowUnspecifiedVmsas: s.allowUnspecifiedVmsas,
+	policy, err := gcetcbendorsement.TdxPolicy(cmd.Context(), c.endorsement, &gcetcbendorsement.TdxPolicyOptions{
+		Base:      s.basePolicy,
+		Overwrite: s.overwrite,
+		RAMGiB:    s.ramGiB,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to generate sev policy: %v", err)
+		return fmt.Errorf("failed to generate tdx policy: %v", err)
 	}
 	out, cleanup, err := backend.IO.Create(c.out)
 	if err != nil {
@@ -137,36 +127,18 @@ func (c *sevPolicyCommand) runE(cmd *cobra.Command, args []string) error {
 	}
 	bin, err := proto.Marshal(policy)
 	if err != nil {
-		return fmt.Errorf("failed to marshal sev policy: %v", err)
+		return fmt.Errorf("failed to marshal tdx policy: %v", err)
 	}
 	return gcetcbendorsement.WriteBytesForm(bin, c.bytesform, out)
 }
 
-func makeSevPolicyCommand(ctx context.Context) *cobra.Command {
-	c := &sevPolicyCommand{}
-	cmd := &cobra.Command{
-		Use: "policy PATH [options]",
-		Long: `Outputs the extended go-sev-guest check.Policy with endorsement reference values.
-
-The mandatory PATH must be to a binary serialized VMLaunchEndorsement.
-`,
-		PersistentPreRunE: c.persistentPreRunE,
-		RunE:              c.runE,
-	}
-	cmd.Flags().StringVar(&c.out, "out", "-", "Path to output serialized check.Policy. "+
-		"Default - for stdout.")
-	cmd.Flags().StringVar(&c.outform, "outform", "auto", outformUsage)
-	cmd.SetContext(ctx)
-	return cmd
-}
-
-func (c *sevValidateCommand) persistentPreRunE(cmd *cobra.Command, args []string) error {
+func (c *tdxValidateCommand) persistentPreRunE(cmd *cobra.Command, args []string) error {
 	backend, err := backendFrom(cmd.Context())
 	if err != nil {
 		return err
 	}
 	if len(args) != 1 {
-		return fmt.Errorf("sev validate expects exactly one positional argument, got %d", len(args))
+		return fmt.Errorf("tdx validate expects exactly one positional argument, got %d", len(args))
 	}
 	attestation := args[0]
 	content, err := backend.IO.ReadFile(attestation)
@@ -188,12 +160,12 @@ func (c *sevValidateCommand) persistentPreRunE(cmd *cobra.Command, args []string
 	return nil
 }
 
-func (c *sevValidateCommand) runE(cmd *cobra.Command, args []string) error {
+func (c *tdxValidateCommand) runE(cmd *cobra.Command, args []string) error {
 	backend, err := backendFrom(cmd.Context())
 	if err != nil {
 		return err
 	}
-	s, err := sevFrom(cmd.Context())
+	s, err := tdxFrom(cmd.Context())
 	if err != nil {
 		return err
 	}
@@ -201,31 +173,41 @@ func (c *sevValidateCommand) runE(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	tpmat, err := extract.Attestation(c.content)
-	if err != nil {
-		return err
-	}
-	switch at := tpmat.TeeAttestation.(type) {
-	case *tpmpb.Attestation_SevSnpAttestation:
-		return gcetcbendorsement.SevValidate(cmd.Context(), at.SevSnpAttestation,
-			&gcetcbendorsement.SevValidateOptions{
-				Now:          backend.Now,
-				Getter:       backend.Getter,
-				Endorsement:  c.endorsement,
-				Overwrite:    s.overwrite,
-				BasePolicy:   s.basePolicy,
-				RootsOfTrust: rot,
-			})
-	}
 
-	return fmt.Errorf("unsupported attestation type %T", tpmat.TeeAttestation)
+	return gcetcbendorsement.TdxValidate(cmd.Context(), c.content,
+		&gcetcbendorsement.TdxValidateOptions{
+			Now:          backend.Now,
+			Getter:       backend.Getter,
+			Endorsement:  c.endorsement,
+			Overwrite:    s.overwrite,
+			BasePolicy:   s.basePolicy,
+			RootsOfTrust: rot,
+		})
 }
 
-func makeSevValidateCommand(ctx context.Context) *cobra.Command {
-	c := &sevValidateCommand{}
+func makeTdxPolicyCommand(ctx context.Context) *cobra.Command {
+	c := &tdxPolicyCommand{}
 	cmd := &cobra.Command{
-		Use: "validate PATH [-endorsement=PATH] ",
-		Long: `Validates a SEV-SNP attestation report against its firmware endorsement.
+		Use: "policy PATH [--out=PATH] [--outform=textproto|bin|hex|base64|auto]",
+		Long: `Creates a go-tdx-guest validation policy to fit the firmware endorsement.
+
+The mandatory PATH must be to a binary serialized VMLaunchEndorsement.
+`,
+		PersistentPreRunE: c.persistentPreRunE,
+		RunE:              c.runE,
+	}
+	cmd.Flags().StringVar(&c.out, "out", "-", "Path to output serialized checkconfig.Policy. "+
+		"Default - for stdout.")
+	cmd.Flags().StringVar(&c.outform, "outform", "auto", outformUsage)
+	cmd.SetContext(ctx)
+	return cmd
+}
+
+func makeTdxValidateCommand(ctx context.Context) *cobra.Command {
+	c := &tdxValidateCommand{}
+	cmd := &cobra.Command{
+		Use: "validate PATH [--endorsement=PATH] ",
+		Long: `Validates a TDX quote against its firmware endorsement.
 
 The mandatory PATH must be to an attestation in one of the following formats:` +
 			attestationFormatsUsage,
@@ -239,7 +221,7 @@ The mandatory PATH must be to an attestation in one of the following formats:` +
 	return cmd
 }
 
-func (c *sevCommand) persistentPreRunE(cmd *cobra.Command, _ []string) error {
+func (c *tdxCommand) persistentPreRunE(cmd *cobra.Command, _ []string) error {
 	backend, err := backendFrom(cmd.Context())
 	if err != nil {
 		return err
@@ -258,28 +240,23 @@ func (c *sevCommand) persistentPreRunE(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func makeSevCommand(ctx0 context.Context) *cobra.Command {
-	c := &sevCommand{}
+func makeTdxCommand(ctx0 context.Context) *cobra.Command {
+	c := &tdxCommand{}
 	cmd := &cobra.Command{
-		Use: "sev CMD [-base=PATH] [-overwrite] [-launch_vmsas=#] [-allow_unspecified_vmsas]",
-		Long: `Outputs the extended go-sev-guest check.Policy with endorsement reference values.
-
-The mandatory PATH must be to a binary serialized VMLaunchEndorsement.
-`,
+		Use:               "tdx CMD [-base=PATH] [-overwrite] [-ram_gib=#]",
+		Long:              `Parent to TDX subcommands that share configuration flags.`,
 		PersistentPreRunE: c.persistentPreRunE,
 		RunE: func(*cobra.Command, []string) error {
-			return errNoSevCommand
+			return errNoTdxCommand
 		},
 	}
 	cmd.PersistentFlags().BoolVar(&c.overwrite, "overwrite", false,
 		"If false, it is an error for populated base policy fields to be overwritten.")
-	cmd.PersistentFlags().StringVar(&c.base, "base", "", "Path to base go-sev-guest check.Policy.")
-	cmd.PersistentFlags().Uint32Var(&c.launchVmsas, "launch_vmsas", 0, "Number of VMSAs at launch.")
-	cmd.PersistentFlags().BoolVar(&c.allowUnspecifiedVmsas, "allow_unspecified_vmsas", false,
-		"If true, disregards the Measurement component of the endorsement when updating a policy.")
-	ctx := context.WithValue(ctx0, sevKey, c)
-	cmd.AddCommand(makeSevValidateCommand(ctx))
-	cmd.AddCommand(makeSevPolicyCommand(ctx))
+	cmd.PersistentFlags().StringVar(&c.base, "base", "", "Path to base go-tdx-guest check.Policy.")
+	cmd.PersistentFlags().IntVar(&c.ramGiB, "ram_gib", 0, "Amount of RAM created with.")
+	ctx := context.WithValue(ctx0, tdxKey, c)
+	cmd.AddCommand(makeTdxValidateCommand(ctx))
+	cmd.AddCommand(makeTdxPolicyCommand(ctx))
 	cmd.SetContext(ctx)
 	return cmd
 }

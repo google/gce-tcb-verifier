@@ -42,6 +42,7 @@ import (
 	test "github.com/google/go-sev-guest/testing"
 	testclient "github.com/google/go-sev-guest/testing/client"
 	"github.com/google/go-sev-guest/verify/trust"
+	tcpb "github.com/google/go-tdx-guest/proto/checkconfig"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -49,14 +50,15 @@ import (
 )
 
 var (
-	mu               sync.Once
-	qp               extract.QuoteProvider
-	getter           trust.HTTPSGetter
-	rootlessGetter   trust.HTTPSGetter
-	now              time.Time
-	goodQuote        []byte
-	fakeEndorsement  []byte
-	cleanMeasurement []byte
+	mu                  sync.Once
+	qp                  extract.QuoteProvider
+	getter              trust.HTTPSGetter
+	rootlessGetter      trust.HTTPSGetter
+	now                 time.Time
+	goodSnpQuote        []byte
+	fakeEndorsement     []byte
+	cleanSnpMeasurement []byte
+	cleanTdxMeasurement []byte
 )
 
 const measurementOffset = 0x90
@@ -142,18 +144,23 @@ func initQuote(t testing.TB) func() {
 		}
 		var zeros [abi.ReportDataSize]byte
 		var zeroRaw [labi.SnpReportRespReportSize]byte
-		wantMeas, err := hex.DecodeString(verifytest.CleanExampleMeasurement)
+		wantSnpMeas, err := hex.DecodeString(verifytest.CleanExampleMeasurement)
 		if err != nil {
 			t.Fatalf("hex.DecodeString(CleanExampleMeasurement) failed: %v", err)
 		}
-		cleanMeasurement = wantMeas
+		wantTdxMeas, err := hex.DecodeString(verifytest.CleanTdxExampleMeasurement)
+		if err != nil {
+			t.Fatalf("hex.DecodeString(CleanExampleTdxMeasurement) failed: %v", err)
+		}
+		cleanSnpMeasurement = wantSnpMeas
+		cleanTdxMeasurement = wantTdxMeas
 		// Set Version to 2
 		binary.LittleEndian.PutUint32(zeroRaw[0x00:0x04], 2)
 		binary.LittleEndian.PutUint64(zeroRaw[0x08:0x10], abi.SnpPolicyToBytes(abi.SnpPolicy{}))
 		// Signature algorithm ECC P-384 with SHA-384 is encoded as 1.
 		binary.LittleEndian.PutUint32(zeroRaw[0x34:0x38], 1)
 		// Write the expected measurement.
-		copy(zeroRaw[measurementOffset:measurementOffset+abi.MeasurementSize], wantMeas)
+		copy(zeroRaw[measurementOffset:measurementOffset+abi.MeasurementSize], wantSnpMeas)
 		qp, _, _, _ = testclient.GetSevQuoteProvider([]test.TestCase{
 			{
 				Name:   "zeros",
@@ -165,7 +172,7 @@ func initQuote(t testing.TB) func() {
 			Signer:  s,
 			Now:     now,
 		}, t)
-		goodQuote, err = qp.GetRawQuote(zeros)
+		goodSnpQuote, err = qp.GetRawQuote(zeros)
 		if err != nil {
 			t.Fatalf("qp.GetRawQuote() failed: %v", err)
 		}
@@ -223,7 +230,7 @@ func TestExtract(t *testing.T) {
 			name:  "success good attestation no provider",
 			input: []string{binAttestationPath, "--out", "endo.binarypb"},
 			io: &testIO{files: map[string]*ioResult{
-				binAttestationPath: &ioResult{readBytes: goodQuote},
+				binAttestationPath: &ioResult{readBytes: goodSnpQuote},
 			}},
 			outpath: "endo.binarypb",
 		},
@@ -549,7 +556,7 @@ func TestSevPolicy(t *testing.T) {
 			want: wantProto(&cpb.Policy{
 				Policy:         (1 << 17) | (1 << 18) | (1 << 16),
 				MinimumVersion: "0.0",
-				Measurement:    cleanMeasurement,
+				Measurement:    cleanSnpMeasurement,
 			},
 				prototext.Unmarshal),
 		},
@@ -564,7 +571,7 @@ func TestSevPolicy(t *testing.T) {
 			want: wantProto(&cpb.Policy{
 				Policy:         (1 << 17) | (1 << 18) | (1 << 16),
 				MinimumVersion: "0.0",
-				Measurement:    cleanMeasurement,
+				Measurement:    cleanSnpMeasurement,
 			},
 				proto.Unmarshal),
 			outpath: "foo",
@@ -580,7 +587,7 @@ func TestSevPolicy(t *testing.T) {
 			},
 			want: wantProto(&cpb.Policy{
 				Policy:       (1 << 17) | (1 << 18) | (1 << 16),
-				Measurement:  cleanMeasurement,
+				Measurement:  cleanSnpMeasurement,
 				PlatformInfo: &wrapperspb.UInt64Value{Value: 1},
 			},
 				proto.Unmarshal),
@@ -647,7 +654,7 @@ func TestSevValidate(t *testing.T) {
 				files: map[string]*ioResult{
 					endorsementPath: &ioResult{readBytes: fakeEndorsement},
 					rootPath:        &ioResult{readBytes: devkeys.RootCert},
-					quotePath:       &ioResult{readBytes: goodQuote},
+					quotePath:       &ioResult{readBytes: goodSnpQuote},
 				},
 			},
 		},
@@ -657,7 +664,7 @@ func TestSevValidate(t *testing.T) {
 			io: &testIO{
 				files: map[string]*ioResult{
 					rootPath:  &ioResult{readBytes: devkeys.RootCert},
-					quotePath: &ioResult{readBytes: goodQuote},
+					quotePath: &ioResult{readBytes: goodSnpQuote},
 				},
 			},
 			wantErr: "failed to read endorsement file",
@@ -667,7 +674,7 @@ func TestSevValidate(t *testing.T) {
 			input: []string{quotePath, "--root_cert", rootPath},
 			io: &testIO{
 				files: map[string]*ioResult{
-					quotePath: &ioResult{readBytes: goodQuote},
+					quotePath: &ioResult{readBytes: goodSnpQuote},
 				},
 			},
 			wantErr: "failed to get root certificate",
@@ -696,6 +703,109 @@ func TestSevValidate(t *testing.T) {
 			c.SetArgs(append([]string{"sev", "validate"}, tc.input...))
 			if err := c.Execute(); !match.Error(err, tc.wantErr) {
 				t.Fatalf("sev validate %s errored unexpectedly. Got %v, want %q", strings.Join(tc.input, " "), err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestTdxPolicy(t *testing.T) {
+	mu.Do(initQuote(t))
+	endorsementPath := "endorsement.binarypb"
+	goodBasePath := "base.binarypb"
+	goodBase, err := proto.Marshal(&tcpb.Policy{})
+	if err != nil {
+		t.Fatalf("failed to marshal base: %v", err)
+	}
+	wantProto := func(want *tcpb.Policy, unmarshal func(got []byte, m proto.Message) error) func(got []byte) error {
+		return func(got []byte) error {
+			gotProto := &tcpb.Policy{}
+			if err := unmarshal(got, gotProto); err != nil {
+				return fmt.Errorf("failed to unmarshal policy: %v", err)
+			}
+			if diff := cmp.Diff(gotProto, want, protocmp.Transform()); diff != "" {
+				return fmt.Errorf("(-got, +want) %s", diff)
+			}
+			return nil
+		}
+	}
+	tcs := []struct {
+		name    string
+		input   []string
+		getter  trust.HTTPSGetter
+		io      *testIO
+		want    func(got []byte) error
+		wantErr string
+		outpath string
+	}{
+		{
+			name:  "success",
+			input: []string{endorsementPath, "--ram_gib", "16"},
+			io: &testIO{
+				files: map[string]*ioResult{
+					endorsementPath: &ioResult{readBytes: fakeEndorsement},
+				},
+			},
+			want: wantProto(&tcpb.Policy{
+				TdQuoteBodyPolicy: &tcpb.TDQuoteBodyPolicy{AnyMrTd: [][]byte{cleanTdxMeasurement}},
+			},
+				prototext.Unmarshal),
+		},
+		{
+			name:  "success binProto",
+			input: []string{endorsementPath, "--ram_gib", "16", "--out", "foo"},
+			io: &testIO{
+				files: map[string]*ioResult{
+					endorsementPath: &ioResult{readBytes: fakeEndorsement},
+				},
+			},
+			want: wantProto(&tcpb.Policy{
+				TdQuoteBodyPolicy: &tcpb.TDQuoteBodyPolicy{AnyMrTd: [][]byte{cleanTdxMeasurement}},
+			},
+				proto.Unmarshal),
+			outpath: "foo",
+		},
+		{
+			name:  "success with base",
+			input: []string{endorsementPath, "--ram_gib", "16", "--out", "foo", "--base", goodBasePath},
+			io: &testIO{
+				files: map[string]*ioResult{
+					endorsementPath: &ioResult{readBytes: fakeEndorsement},
+					goodBasePath:    &ioResult{readBytes: goodBase},
+				},
+			},
+			want: wantProto(&tcpb.Policy{
+				TdQuoteBodyPolicy: &tcpb.TDQuoteBodyPolicy{AnyMrTd: [][]byte{cleanTdxMeasurement}},
+			},
+				proto.Unmarshal),
+			outpath: "foo",
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			c := MakeRoot(context.WithValue(context.Background(), backendKey, &Backend{
+				Provider: qp,
+				Getter:   tc.getter,
+				Now:      now,
+				IO:       tc.io,
+			}))
+			c.SetArgs(append([]string{"tdx", "policy"}, tc.input...))
+			if err := c.Execute(); !match.Error(err, tc.wantErr) {
+				t.Fatalf("tdx policy %s errored unexpectedly. Got %v, want %q", strings.Join(tc.input, " "),
+					err, tc.wantErr)
+			}
+			if tc.wantErr != "" {
+				return
+			}
+			outpath := "-"
+			if tc.outpath != "" {
+				outpath = tc.outpath
+			}
+			got, err := tc.io.ReadFile(outpath)
+			if err != nil {
+				t.Fatalf("tc.io.ReadFile(%q) failed: %v", outpath, err)
+			}
+			if err := tc.want(got); err != nil {
+				t.Fatalf("tdx policy %s output unexpected: %v", strings.Join(tc.input, " "), err)
 			}
 		})
 	}

@@ -70,6 +70,7 @@ func MakeRoot(ctx0 context.Context) *cobra.Command {
 	cmd.AddCommand(makeInspect(ctx0))
 	cmd.AddCommand(makeVerify(ctx0))
 	cmd.AddCommand(makeSevCommand(ctx0))
+	cmd.AddCommand(makeTdxCommand(ctx0))
 	cmd.SetContext(ctx0)
 	return cmd
 }
