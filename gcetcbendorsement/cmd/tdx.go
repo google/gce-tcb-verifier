@@ -252,8 +252,8 @@ func makeTdxCommand(ctx0 context.Context) *cobra.Command {
 	}
 	cmd.PersistentFlags().BoolVar(&c.overwrite, "overwrite", false,
 		"If false, it is an error for populated base policy fields to be overwritten.")
-	cmd.PersistentFlags().StringVar(&c.base, "base", "", "Path to base go-tdx-guest check.Policy.")
-	cmd.PersistentFlags().IntVar(&c.ramGiB, "ram_gib", 0, "Amount of RAM created with.")
+	cmd.PersistentFlags().StringVar(&c.base, "base", "", "Path to base go-tdx-guest checkconfig.Policy.")
+	cmd.PersistentFlags().IntVar(&c.ramGiB, "ram_gib", 0, "Amount of RAM created with. If 0, considers all endorsed sizes.")
 	ctx := context.WithValue(ctx0, tdxKey, c)
 	cmd.AddCommand(makeTdxValidateCommand(ctx))
 	cmd.AddCommand(makeTdxPolicyCommand(ctx))

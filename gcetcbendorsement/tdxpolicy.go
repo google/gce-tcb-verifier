@@ -62,6 +62,8 @@ func TdxPolicy(ctx context.Context, endorsement *epb.VMLaunchEndorsement, opts *
 	}
 	var mrtds [][]byte
 	for _, m := range golden.Tdx.Measurements {
+		// If RAMGiB is 0, we try all measurements.
+		// If nonzero, skip sizes that don't match.
 		if opts.RAMGiB != 0 && m.GetRamGib() != uint32(opts.RAMGiB) {
 			continue
 		}
