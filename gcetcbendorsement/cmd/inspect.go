@@ -22,7 +22,6 @@ import (
 	"github.com/google/gce-tcb-verifier/gcetcbendorsement"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
 	"github.com/spf13/cobra"
-	"google.golang.org/protobuf/proto"
 	fmpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
@@ -76,13 +75,9 @@ func (c *inspectCommand) persistentPreRunE(cmd *cobra.Command, args []string) er
 		return fmt.Errorf("failed to parse bytes form %q: %v", c.form, err)
 	}
 	endorsement := args[0]
-	content, err := backend.IO.ReadFile(endorsement)
-	if err != nil {
-		return fmt.Errorf("failed to read endorsement file %q: %v", endorsement, err)
-	}
 	c.endorsement = &epb.VMLaunchEndorsement{}
-	if err := proto.Unmarshal(content, c.endorsement); err != nil {
-		return fmt.Errorf("failed to unmarshal endorsement file %q: %v", endorsement, err)
+	if err := ReadProto(cmd.Context(), endorsement, c.endorsement); err != nil {
+		return err
 	}
 	c.out, c.outDefer, err = backend.IO.Create(c.output)
 	return err

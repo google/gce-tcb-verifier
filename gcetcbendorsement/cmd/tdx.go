@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/gce-tcb-verifier/gcetcbendorsement"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
-	cpb "github.com/google/go-tdx-guest/proto/checkconfig"
+	tcpb "github.com/google/go-tdx-guest/proto/checkconfig"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -37,7 +37,7 @@ type tdxCommand struct {
 	base      string
 	ramGiB    int
 	// derived
-	basePolicy *cpb.Policy
+	basePolicy *tcpb.Policy
 }
 
 type tdxKeyType struct{}
@@ -68,11 +68,7 @@ func tdxFrom(ctx context.Context) (*tdxCommand, error) {
 	return nil, errNoTdxPolicy
 }
 
-func (c *tdxPolicyCommand) persistentPreRunE(cmd *cobra.Command, args []string) error {
-	backend, err := backendFrom(cmd.Context())
-	if err != nil {
-		return err
-	}
+func (c *tdxPolicyCommand) persistentPreRunE(cmd *cobra.Command, args []string) (err error) {
 	// Check positional argument
 	if len(args) != 1 {
 		return fmt.Errorf("tdx-policy expects exactly one positional argument, got %d", len(args))
@@ -83,16 +79,8 @@ func (c *tdxPolicyCommand) persistentPreRunE(cmd *cobra.Command, args []string) 
 		return err
 	}
 	endorsement := args[0]
-	content, err := backend.IO.ReadFile(endorsement)
-	if err != nil {
-		return fmt.Errorf("failed to read endorsement file %q: %v", endorsement, err)
-	}
 	c.endorsement = &epb.VMLaunchEndorsement{}
-	if err := proto.Unmarshal(content, c.endorsement); err != nil {
-		return fmt.Errorf("failed to unmarshal endorsement file %q: %v", endorsement, err)
-	}
-
-	return nil
+	return ReadProto(cmd.Context(), endorsement, c.endorsement)
 }
 
 func (c *tdxPolicyCommand) runE(cmd *cobra.Command, args []string) error {
@@ -147,15 +135,8 @@ func (c *tdxValidateCommand) persistentPreRunE(cmd *cobra.Command, args []string
 	}
 	c.content = content
 	if c.endorsementPath != "" {
-		var endorsementBytes []byte
-		endorsementBytes, err = backend.IO.ReadFile(c.endorsementPath)
-		if err != nil {
-			return fmt.Errorf("failed to read endorsement file %q: %v", c.endorsementPath, err)
-		}
 		c.endorsement = &epb.VMLaunchEndorsement{}
-		if err := proto.Unmarshal(endorsementBytes, c.endorsement); err != nil {
-			return fmt.Errorf("failed to unmarshal endorsement file %q: %v", c.endorsementPath, err)
-		}
+		return ReadProto(cmd.Context(), c.endorsementPath, c.endorsement)
 	}
 	return nil
 }
@@ -222,20 +203,10 @@ The mandatory PATH must be to an attestation in one of the following formats:` +
 }
 
 func (c *tdxCommand) persistentPreRunE(cmd *cobra.Command, _ []string) error {
-	backend, err := backendFrom(cmd.Context())
-	if err != nil {
-		return err
-	}
 	// Check -base flag
 	if c.base != "" {
-		baseContent, err := backend.IO.ReadFile(c.base)
-		if err != nil {
-			return fmt.Errorf("failed to read base policy file %q: %v", c.base, err)
-		}
-		c.basePolicy = &cpb.Policy{}
-		if err := proto.Unmarshal(baseContent, c.basePolicy); err != nil {
-			return fmt.Errorf("failed to unmarshal base policy file %q: %v", c.base, err)
-		}
+		c.basePolicy = &tcpb.Policy{}
+		return ReadProto(cmd.Context(), c.base, c.basePolicy)
 	}
 	return nil
 }

@@ -365,14 +365,14 @@ func TestInspect(t *testing.T) {
 			name:    "read fail",
 			input:   []string{"dne"},
 			io:      &testIO{},
-			wantErr: "failed to read endorsement file",
+			wantErr: "failed to read file",
 		},
 		{
 			name:  "unmarshal fail",
 			input: []string{"bad"},
 			io: &testIO{files: map[string]*ioResult{
 				"bad": &ioResult{readBytes: []byte{0xc0, 0xde}}}},
-			wantErr: "failed to unmarshal endorsement file",
+			wantErr: "failed to unmarshal proto *endorsement.VMLaunchEndorsement file",
 		},
 	}
 	for _, tc := range tcs {
@@ -667,7 +667,7 @@ func TestSevValidate(t *testing.T) {
 					quotePath: &ioResult{readBytes: goodSnpQuote},
 				},
 			},
-			wantErr: "failed to read endorsement file",
+			wantErr: "failed to read file",
 		},
 		{
 			name:  "fail root not found",
