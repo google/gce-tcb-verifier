@@ -25,7 +25,6 @@ import (
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
 	"github.com/google/gce-tcb-verifier/verify"
 	"github.com/spf13/cobra"
-	"google.golang.org/protobuf/proto"
 )
 
 var errNoGetter = errors.New("getter was nil")
@@ -41,22 +40,12 @@ type verifyKeyType struct{}
 var verifyKey verifyKeyType
 
 func (c *verifyCommand) persistentPreRunE(cmd *cobra.Command, args []string) error {
-	backend, err := backendFrom(cmd.Context())
-	if err != nil {
-		return err
-	}
 	if len(args) != 1 {
 		return fmt.Errorf("verify expects exactly one argument, got %d", len(args))
 	}
 	if !c.show {
-		bin, err := backend.IO.ReadFile(args[0])
-		if err != nil {
-			return fmt.Errorf("failed to read endorsement file %q: %w", args[0], err)
-		}
 		c.endorsement = &epb.VMLaunchEndorsement{}
-		if err := proto.Unmarshal(bin, c.endorsement); err != nil {
-			return fmt.Errorf("failed to unmarshal endorsement at %q: %w", args[0], err)
-		}
+		return ReadProto(cmd.Context(), args[0], c.endorsement)
 	}
 	return nil
 }

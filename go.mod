@@ -8,7 +8,9 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.5
 	github.com/golang/protobuf v1.5.4
 	github.com/google/go-cmp v0.6.0
+	github.com/google/go-configfs-tsm v0.2.2
 	github.com/google/go-sev-guest v0.11.1
+	github.com/google/go-tdx-guest v0.3.1
 	github.com/google/go-tpm-tools v0.4.4
 	github.com/google/logger v1.1.1
 	github.com/google/uuid v1.6.0
@@ -22,7 +24,6 @@ require (
 )
 
 require (
-	github.com/google/go-tdx-guest v0.3.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect

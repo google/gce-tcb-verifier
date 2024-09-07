@@ -34,6 +34,12 @@ var (
 	errNoSevCommand = errors.New("sev sub-command must be used")
 )
 
+const (
+	outformUsage = `One of textproto|bin|hex|base64|auto.
+  Outputs the policy as either textproto or serialized binary proto in raw binary, or encoded
+  as hex or base64. Auto means the default is textproto if writing to a terminal, otherwise bin.`
+)
+
 type sevCommand struct {
 	overwrite             bool
 	base                  string
@@ -71,11 +77,7 @@ func sevFrom(ctx context.Context) (*sevCommand, error) {
 	return nil, errNoSevPolicy
 }
 
-func (c *sevPolicyCommand) persistentPreRunE(cmd *cobra.Command, args []string) error {
-	backend, err := backendFrom(cmd.Context())
-	if err != nil {
-		return err
-	}
+func (c *sevPolicyCommand) persistentPreRunE(cmd *cobra.Command, args []string) (err error) {
 	// Check positional argument
 	if len(args) != 1 {
 		return fmt.Errorf("sev-policy expects exactly one positional argument, got %d", len(args))
@@ -86,16 +88,8 @@ func (c *sevPolicyCommand) persistentPreRunE(cmd *cobra.Command, args []string) 
 		return err
 	}
 	endorsement := args[0]
-	content, err := backend.IO.ReadFile(endorsement)
-	if err != nil {
-		return fmt.Errorf("failed to read endorsement file %q: %v", endorsement, err)
-	}
 	c.endorsement = &epb.VMLaunchEndorsement{}
-	if err := proto.Unmarshal(content, c.endorsement); err != nil {
-		return fmt.Errorf("failed to unmarshal endorsement file %q: %v", endorsement, err)
-	}
-
-	return nil
+	return ReadProto(cmd.Context(), endorsement, c.endorsement)
 }
 
 func (c *sevPolicyCommand) runE(cmd *cobra.Command, args []string) error {
@@ -149,10 +143,7 @@ The mandatory PATH must be to a binary serialized VMLaunchEndorsement.
 	}
 	cmd.Flags().StringVar(&c.out, "out", "-", "Path to output serialized check.Policy. "+
 		"Default - for stdout.")
-	cmd.Flags().StringVar(&c.outform, "outform", "auto", "One of textproto|bin|hex|base64|auto. "+
-		"Outputs the policy as either textproto or serialized binary proto in raw binary, or encoded "+
-		"as hex or base64. Auto means the default is textproto if writing to a terminal, otherwise "+
-		"bin.")
+	cmd.Flags().StringVar(&c.outform, "outform", "auto", outformUsage)
 	cmd.SetContext(ctx)
 	return cmd
 }
@@ -172,15 +163,8 @@ func (c *sevValidateCommand) persistentPreRunE(cmd *cobra.Command, args []string
 	}
 	c.content = content
 	if c.endorsementPath != "" {
-		var endorsementBytes []byte
-		endorsementBytes, err = backend.IO.ReadFile(c.endorsementPath)
-		if err != nil {
-			return fmt.Errorf("failed to read endorsement file %q: %v", c.endorsementPath, err)
-		}
 		c.endorsement = &epb.VMLaunchEndorsement{}
-		if err := proto.Unmarshal(endorsementBytes, c.endorsement); err != nil {
-			return fmt.Errorf("failed to unmarshal endorsement file %q: %v", c.endorsementPath, err)
-		}
+		return ReadProto(cmd.Context(), c.endorsementPath, c.endorsement)
 	}
 	return nil
 }
@@ -237,20 +221,10 @@ The mandatory PATH must be to an attestation in one of the following formats:` +
 }
 
 func (c *sevCommand) persistentPreRunE(cmd *cobra.Command, _ []string) error {
-	backend, err := backendFrom(cmd.Context())
-	if err != nil {
-		return err
-	}
 	// Check -base flag
 	if c.base != "" {
-		baseContent, err := backend.IO.ReadFile(c.base)
-		if err != nil {
-			return fmt.Errorf("failed to read base policy file %q: %v", c.base, err)
-		}
 		c.basePolicy = &cpb.Policy{}
-		if err := proto.Unmarshal(baseContent, c.basePolicy); err != nil {
-			return fmt.Errorf("failed to unmarshal base policy file %q: %v", c.base, err)
-		}
+		return ReadProto(cmd.Context(), c.base, c.basePolicy)
 	}
 	return nil
 }

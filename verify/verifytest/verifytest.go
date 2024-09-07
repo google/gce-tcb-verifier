@@ -39,6 +39,8 @@ const (
 	// CleanExampleMeasurement is the hex encoding of a 2MiB 1 VMSA measurement of the CleanExample
 	// firmware binary.
 	CleanExampleMeasurement = "20ec0dbd1c0a26d184a6f11ec5a796d68ec03c9d101bdd84c03f3d9cbbc4a292a9fad098edacfa04da0da58f20be885e"
+	// CleanTdxExampleMeasurement is the hex encoding of a 2MiB c3-standard-4 measurement of the CleanExample.
+	CleanTdxExampleMeasurement = "0d126d4468fba7200f214da27e6a729846cb2fe6ab084a2c15bb39ac85d193ed7f050525a1cd96052d0597362356c9ac"
 	// CleanExampleURL is the URL of the endorsement of the CleanExample firmware binary.
 	CleanExampleURL = "https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/20ec0dbd1c0a26d184a6f11ec5a796d68ec03c9d101bdd84c03f3d9cbbc4a292a9fad098edacfa04da0da58f20be885e.binarypb"
 )
@@ -97,7 +99,7 @@ func FakeEndorsement(t testing.TB) []byte {
 	app.SetArgs([]string{"endorse", "--verbose", "--uefi", fwPath,
 		"--out_dir", dir,
 		"--commit=988881adc9fc3655077dc2d4d757d480b5ea0e11",
-		"--add_snp"})
+		"--add_snp", "--add_tdx"})
 	if err := app.Execute(); err != nil {
 		t.Fatal(err)
 	}
