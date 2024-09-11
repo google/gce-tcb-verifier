@@ -39,14 +39,14 @@ func generateAllPossibleMRTDs(uefi []byte, tdxRequest *EndorsementRequest) ([]*e
 			return nil, err
 		}
 		result = append(result, &epb.VMTdx_Measurement{
-			RamGib: uint32(shapeRAMGib[shape]),
+			RamGib: uint32(shapeDesc[shape].size),
 			Mrtd:   meas[:],
 		})
 		if tdxRequest.IncludeEarlyAccept {
 			options.DisableUnacceptedMemory = true
 			meas, _ = MRTD(options, uefi)
 			result = append(result, &epb.VMTdx_Measurement{
-				RamGib:      uint32(shapeRAMGib[shape]),
+				RamGib:      uint32(shapeDesc[shape].size),
 				EarlyAccept: true,
 				Mrtd:        meas[:],
 			})
@@ -59,7 +59,7 @@ func generateAllPossibleMRTDs(uefi []byte, tdxRequest *EndorsementRequest) ([]*e
 func UnsignedTDX(uefi []byte, tdxRequest *EndorsementRequest) (*epb.VMTdx, error) {
 	// If no machine shapes are given, use all known shapes.
 	if tdxRequest.MachineShapes == nil {
-		for shape := range shapeBanks {
+		for shape := range shapeDesc {
 			tdxRequest.MachineShapes = append(tdxRequest.MachineShapes, shape)
 		}
 	}
