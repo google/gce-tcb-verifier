@@ -28,6 +28,7 @@ import (
 	"github.com/google/gce-tcb-verifier/verify"
 	"github.com/google/go-sev-guest/client"
 	"github.com/google/go-sev-guest/verify/trust"
+	tdclient "github.com/google/go-tdx-guest/client"
 	"github.com/google/logger"
 	"github.com/spf13/cobra"
 )
@@ -96,15 +97,33 @@ func (b *bearerGetter) Get(url string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
+// The go-tdx-guest IsSupported signature is different from go-sev-guest. Add a compatibility layer.
+type tdxQuoteProvider struct{ p tdclient.QuoteProvider }
+
+func (qp *tdxQuoteProvider) IsSupported() bool { return qp.p.IsSupported() == nil }
+func (qp *tdxQuoteProvider) GetRawQuote(reportData [64]byte) ([]uint8, error) {
+	return qp.p.GetRawQuote(reportData)
+}
+
+func getProvider() (p extract.QuoteProvider) {
+	p, _ = client.GetQuoteProvider()
+	if p.IsSupported() {
+		return p
+	}
+	tdp, _ := tdclient.GetQuoteProvider()
+	p = &tdxQuoteProvider{p: tdp}
+	if !p.IsSupported() {
+		logger.Warningf("Could not create a supported quote provider.")
+		return nil
+	}
+	return p
+}
+
 func init() {
 	var bearer string
 	var timeout time.Duration
-	p, err := client.GetQuoteProvider()
-	if err != nil {
-		logger.Fatalf("Failed to get quote provider: %v", err)
-	}
 	RootCmd = MakeRoot(context.WithValue(context.Background(), backendKey, &Backend{
-		Provider: p,
+		Provider: getProvider(),
 		MakeEfiVariableReader: func(path string) exel.VariableReader {
 			return exel.MakeEfiVarFSReader(path)
 		},
