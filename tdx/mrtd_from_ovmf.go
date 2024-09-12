@@ -18,46 +18,64 @@ import (
 	"fmt"
 
 	"github.com/google/gce-tcb-verifier/ovmf"
+	"github.com/google/gce-tcb-verifier/ovmf/abi"
 )
 
 const (
-	mib = 0x100000
-	gib = 0x40000000
+	mib           = 0x100000
+	gib           = 0x40000000
+	mmioHoleStart = 3 * gib
+	mmioHoleEnd   = 4 * gib
 )
 
-func regionsForGB(sizeInGB int) []ovmf.GuestPhysicalRegion {
-	return []ovmf.GuestPhysicalRegion{
-		{Start: 0, Length: 3 * gib},                        // Lower 3GiB
-		{Start: 4*gib - 2*mib, Length: 2 * mib},            // Top 2MiB under 4GiB for TDVF
-		{Start: 4 * gib, Length: uint64(sizeInGB-3) * gib}, // Rest of memory
+type numaDesc struct {
+	size           int // In GiB
+	nodes          int
+	maxSizePerNode int // In GiB
+}
+
+func regionsForShape(shape numaDesc) []ovmf.GuestPhysicalRegion {
+	regions := []ovmf.GuestPhysicalRegion{
+		{Start: 0, Length: mmioHoleStart},       // Lower 3GiB
+		{Start: 4*gib - 2*mib, Length: 2 * mib}, // Top 2MiB under 4GiB for TDVF
 	}
+	Start := abi.EFIPhysicalAddress(mmioHoleEnd)
+	ShapeSizeBytes := uint64(shape.size * gib)
+	taken := uint64(mmioHoleStart)
+	MaxNodeSize := uint64(shape.maxSizePerNode * gib)
+	if ShapeSizeBytes < taken || MaxNodeSize < taken {
+		panic("bad shape constants")
+	}
+	Size := ShapeSizeBytes - taken
+	for node := 0; node < shape.nodes; node++ {
+		length := MaxNodeSize - uint64(taken)
+		if Size < length {
+			length = Size
+		}
+		regions = append(regions, ovmf.GuestPhysicalRegion{Start: Start, Length: length})
+		Start += abi.EFIPhysicalAddress(length)
+		Size -= length
+		taken = 0
+	}
+	return regions
 }
 
 // https://cloud.google.com/compute/docs/general-purpose-machines#c3_machine_types
-var shapeRAMGib = map[string]int{
-	"c3-standard-4":   16,
-	"c3-standard-8":   32,
-	"c3-standard-22":  88,
-	"c3-standard-44":  176,
-	"c3-standard-88":  352,
-	"c3-standard-176": 704,
-}
-
-var shapeBanks = map[string][]ovmf.GuestPhysicalRegion{
-	"c3-standard-4":   regionsForGB(shapeRAMGib["c3-standard-4"]),
-	"c3-standard-8":   regionsForGB(shapeRAMGib["c3-standard-8"]),
-	"c3-standard-22":  regionsForGB(shapeRAMGib["c3-standard-22"]),
-	"c3-standard-44":  regionsForGB(shapeRAMGib["c3-standard-44"]),
-	"c3-standard-88":  regionsForGB(shapeRAMGib["c3-standard-88"]),
-	"c3-standard-176": regionsForGB(shapeRAMGib["c3-standard-176"]),
+var shapeDesc = map[string]numaDesc{
+	"c3-standard-4":   {size: 16, nodes: 1, maxSizePerNode: 176},
+	"c3-standard-8":   {size: 32, nodes: 1, maxSizePerNode: 176},
+	"c3-standard-22":  {size: 88, nodes: 1, maxSizePerNode: 176},
+	"c3-standard-44":  {size: 176, nodes: 1, maxSizePerNode: 176},
+	"c3-standard-88":  {size: 352, nodes: 2, maxSizePerNode: 176},
+	"c3-standard-176": {size: 704, nodes: 4, maxSizePerNode: 176},
 }
 
 func machineTypeToRAMBanks(machineType string) ([]ovmf.GuestPhysicalRegion, error) {
-	result, ok := shapeBanks[machineType]
+	desc, ok := shapeDesc[machineType]
 	if !ok {
 		return nil, fmt.Errorf("unsupported machine type: %s", machineType)
 	}
-	return result, nil
+	return regionsForShape(desc), nil
 }
 
 // LaunchOptions contains GCE API surface options for launching a TDX VM that translate into the
