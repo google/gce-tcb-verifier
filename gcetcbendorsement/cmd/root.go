@@ -104,19 +104,20 @@ func (qp *tdxQuoteProvider) IsSupported() bool { return qp.p.IsSupported() == ni
 func (qp *tdxQuoteProvider) GetRawQuote(reportData [64]byte) ([]uint8, error) {
 	return qp.p.GetRawQuote(reportData)
 }
-func createTdxQuoteProvider() (extract.QuoteProvider, error) {
+func createTdxQuoteProvider() extract.QuoteProvider {
 	tdp, _ := tdclient.GetQuoteProvider() // Never errors.
-	return &tdxQuoteProvider{p: tdp}, nil
+	return &tdxQuoteProvider{p: tdp}
+}
+
+func createSnpQuoteProvider() extract.QuoteProvider {
+	sp, _ := client.GetQuoteProvider() // Never errors.
+	return sp
 }
 
 func getProvider() (p extract.QuoteProvider) {
-	// Eta-expand the go-sev-guest creator since Golang doesn't do function type conversion.
-	createSev := func() (extract.QuoteProvider, error) { return client.GetQuoteProvider() }
-	creators := []func() (extract.QuoteProvider, error){createSev, createTdxQuoteProvider}
+	creators := []func() extract.QuoteProvider{createSnpQuoteProvider, createTdxQuoteProvider}
 	for _, c := range creators {
-		// Creation doesn't fail.
-		p, _ := c()
-		if p.IsSupported() {
+		if p := c(); p.IsSupported() {
 			return p
 		}
 	}
