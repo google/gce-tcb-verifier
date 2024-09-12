@@ -104,19 +104,22 @@ func (qp *tdxQuoteProvider) IsSupported() bool { return qp.p.IsSupported() == ni
 func (qp *tdxQuoteProvider) GetRawQuote(reportData [64]byte) ([]uint8, error) {
 	return qp.p.GetRawQuote(reportData)
 }
+func createTdxQuoteProvider() (extract.QuoteProvider, error) {
+	tdp, _ := tdclient.GetQuoteProvider()  // Never errors.
+	return &tdxQuoteProvider{p: tdp}, nil
+}
 
 func getProvider() (p extract.QuoteProvider) {
-	p, _ = client.GetQuoteProvider()
-	if p.IsSupported() {
-		return p
+	creators := []func()(extract.QuoteProvider, error){client.GetQuoteProvider, createTdxQuoteProvider}
+	for _, c := range creators {
+		// Creation doesn't fail.
+		p, _ := c()
+		if p.IsSupported() {
+			return p
+		}
 	}
-	tdp, _ := tdclient.GetQuoteProvider()
-	p = &tdxQuoteProvider{p: tdp}
-	if !p.IsSupported() {
-		logger.Warningf("Could not create a supported quote provider.")
-		return nil
-	}
-	return p
+	logger.Warningf("Could not create a supported quote provider.")
+	return nil
 }
 
 func init() {
