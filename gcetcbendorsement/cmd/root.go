@@ -105,12 +105,14 @@ func (qp *tdxQuoteProvider) GetRawQuote(reportData [64]byte) ([]uint8, error) {
 	return qp.p.GetRawQuote(reportData)
 }
 func createTdxQuoteProvider() (extract.QuoteProvider, error) {
-	tdp, _ := tdclient.GetQuoteProvider()  // Never errors.
+	tdp, _ := tdclient.GetQuoteProvider() // Never errors.
 	return &tdxQuoteProvider{p: tdp}, nil
 }
 
 func getProvider() (p extract.QuoteProvider) {
-	creators := []func()(extract.QuoteProvider, error){client.GetQuoteProvider, createTdxQuoteProvider}
+	// Eta-expand the go-sev-guest creator since Golang doesn't do function type conversion.
+	createSev := func() (extract.QuoteProvider, error) { return client.GetQuoteProvider() }
+	creators := []func() (extract.QuoteProvider, error){createSev, createTdxQuoteProvider}
 	for _, c := range creators {
 		// Creation doesn't fail.
 		p, _ := c()
