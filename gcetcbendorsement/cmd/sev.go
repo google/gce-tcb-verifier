@@ -63,8 +63,9 @@ type sevPolicyCommand struct {
 }
 
 type sevValidateCommand struct {
-	endorsementPath string
-	root            string
+	endorsementPath  string
+	root             string
+	testonlyForceGCS bool
 	// derived
 	content     []byte
 	endorsement *epb.VMLaunchEndorsement
@@ -190,12 +191,13 @@ func (c *sevValidateCommand) runE(cmd *cobra.Command, args []string) error {
 	case *tpmpb.Attestation_SevSnpAttestation:
 		return gcetcbendorsement.SevValidate(cmd.Context(), at.SevSnpAttestation,
 			&gcetcbendorsement.SevValidateOptions{
-				Now:          backend.Now,
-				Getter:       backend.Getter,
-				Endorsement:  c.endorsement,
-				Overwrite:    s.overwrite,
-				BasePolicy:   s.basePolicy,
-				RootsOfTrust: rot,
+				Now:              backend.Now,
+				Getter:           backend.Getter,
+				Endorsement:      c.endorsement,
+				Overwrite:        s.overwrite,
+				BasePolicy:       s.basePolicy,
+				RootsOfTrust:     rot,
+				TestonlyForceGCS: c.testonlyForceGCS,
 			})
 	}
 
@@ -216,6 +218,8 @@ The mandatory PATH must be to an attestation in one of the following formats:` +
 	cmd.Flags().StringVar(&c.endorsementPath, "endorsement", "",
 		"The path to an endorsement file. Overrides what could be extracted from the attestation.")
 	cmd.Flags().StringVar(&c.root, "root_cert", "", "The root certificate for endorsements.")
+	cmd.Flags().BoolVar(&c.testonlyForceGCS, "testonly_force_gcs", false,
+		"Force fetch the endorsement from the network.")
 	cmd.SetContext(ctx)
 	return cmd
 }
