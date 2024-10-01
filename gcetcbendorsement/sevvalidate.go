@@ -31,7 +31,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const testonlyForceGCSGUID = "00000000-0000-0000-0000-000000000000"
+const testonlyForceGCSGUID = "cd76f232-42fc-4140-87c2-fb5353a2bb32"
 
 // SevValidateOptions holds options for the sev-validate command.
 type SevValidateOptions struct {
