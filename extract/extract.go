@@ -79,7 +79,8 @@ type Options struct {
 	EventLogLocation     string
 	UEFIVariableReader   exel.VariableReader
 	// Quote is any of the supported formats. If empty, the Provider will be used to get a quote.
-	Quote []byte
+	Quote      []byte
+	ForceFetch bool
 }
 
 // DefaultOptions returns the default options for RIM extraction.
@@ -247,7 +248,7 @@ func Endorsement(opts *Options) (out []byte, err error) {
 	var objectName string
 	var evErr, quoteErr, internetErr error
 	// First try the event logger.
-	if opts.EventLogLocation != "" {
+	if opts.EventLogLocation != "" && !opts.ForceFetch {
 		out, evErr = opts.fromEventLog()
 		if evErr == nil {
 			return out, nil
@@ -256,7 +257,7 @@ func Endorsement(opts *Options) (out []byte, err error) {
 
 	// If the verbatim quote is provided, try that next.
 	endorsement, objectName, quoteErr = opts.fromQuote(opts.Quote)
-	if quoteErr == nil && len(endorsement) > 0 {
+	if quoteErr == nil && len(endorsement) > 0 && !opts.ForceFetch {
 		return endorsement, nil
 	}
 
@@ -271,7 +272,7 @@ func Endorsement(opts *Options) (out []byte, err error) {
 		if quoteErr != nil {
 			return nil, quoteErr
 		}
-		if len(endorsement) > 0 {
+		if len(endorsement) > 0 && !opts.ForceFetch {
 			return endorsement, nil
 		}
 	}

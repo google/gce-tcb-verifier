@@ -37,6 +37,7 @@ type extractCommand struct {
 	manufacturer string
 	eventlogpath string
 	efivarloc    string
+	forceFetch   bool
 }
 type extractKeyType struct{}
 
@@ -83,6 +84,7 @@ func (c *extractCommand) runE(cmd *cobra.Command, args []string) error {
 		EventLogLocation:     c.eventlogpath,
 		UEFIVariableReader:   reader,
 		Quote:                c.content,
+		ForceFetch:           c.forceFetch,
 	})
 	if err != nil {
 		return err
@@ -111,6 +113,7 @@ If PATH is provided it must be to an attestation in one of the following formats
 	cmd.Flags().StringVar(&e.eventlogpath, "eventlog", "/sys/kernel/security/tpm0/binary_bios_measurements", "The path to the bios boot event log")
 	cmd.Flags().StringVar(&e.manufacturer, "firmware_manufacturer", extract.GCEFirmwareManufacturer, "The firmware manufacturer string to search for in SP800155 events.")
 	cmd.Flags().StringVar(&e.efivarloc, "efivarfs", "/sys/firmware/efi/efivars", "The efivarfs mount location.")
+	cmd.Flags().BoolVar(&e.forceFetch, "force_fetch", false, "Force fetch the endorsement from the network.")
 	cmd.SetContext(ctx)
 	return cmd
 }

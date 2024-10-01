@@ -31,6 +31,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const testonlyForceGCSGUID = "cd76f232-42fc-4140-87c2-fb5353a2bb32"
+
 // SevValidateOptions holds options for the sev-validate command.
 type SevValidateOptions struct {
 	Endorsement         *epb.VMLaunchEndorsement
@@ -40,6 +42,7 @@ type SevValidateOptions struct {
 	Now                 time.Time
 	Getter              verify.HTTPSGetter
 	ExpectedLaunchVmsas uint32
+	TestonlyForceGCS    bool
 }
 
 func unmarshalEndorsement(data []byte) (*epb.VMLaunchEndorsement, error) {
@@ -104,8 +107,12 @@ func SevValidate(ctx context.Context, attestation *spb.Attestation, opts *SevVal
 	if err != nil {
 		return fmt.Errorf("could not translate policy to validation options: %v", err)
 	}
+	useGUID := sev.GCEFwCertGUID
+	if opts.TestonlyForceGCS {
+		useGUID = testonlyForceGCSGUID
+	}
 	vopts.CertTableOptions = map[string]*validate.CertEntryOption{
-		sev.GCEFwCertGUID: {
+		useGUID: {
 			Kind: validate.CertEntryRequire,
 			Validate: verify.SNPValidateFunc(&verify.Options{
 				SNP:          &verify.SNPOptions{ExpectedLaunchVMSAs: opts.ExpectedLaunchVmsas},
