@@ -370,13 +370,13 @@ func TestExtractTDXMetadata(t *testing.T) {
 				0, 0, 0, 0, 1, 0, 0, 0, // Memory base
 				64, 0, 0, 0, 0, 0, 0, 0, // Memory size
 				2, 0, 0, 0, // Section type TD HOB not counted towards the firmware volumes.
-				0x51, 0, 0, 0, // Metadata attributes extendmr [end of first section]
+				0x51, 0, 0, 0, // Metadata attributes [end of first section]
 				0, 0, 0, 0, // Data offset
 				168, 0, 0, 0, // Data size
 				0, 0, 0xe0, 0xff, 0, 0, 0, 0, // Memory base
 				168, 0, 0, 0, 0, 0, 0, 0, // Memory size
 				0, 0, 0, 0, // Section type
-				0xcd, 0xab, 0x21, 0x43, // Metadata attributes extendmr
+				0xcd, 0xab, 0x21, 0x43, // Metadata attributes
 
 				0x98, 0, 0, 0, // Offset points to the beginning of this input.
 				22, 0, // size of this entry
@@ -398,20 +398,20 @@ func TestExtractTDXMetadata(t *testing.T) {
 				},
 				Sections: []*abi.TDXMetadataSection{
 					{
-						DataOffset:                 0,
-						DataSize:                   64,
-						MemoryBase:                 0x100000000,
-						MemorySize:                 64,
-						SectionType:                2,
-						MetadataAttributesExtendmr: 0x51,
+						DataOffset:  0,
+						DataSize:    64,
+						MemoryBase:  0x100000000,
+						MemorySize:  64,
+						SectionType: 2,
+						Attributes:  0x51,
 					},
 					{
-						DataOffset:                 0,
-						DataSize:                   168,
-						MemoryBase:                 0xffe00000,
-						MemorySize:                 168,
-						SectionType:                0,
-						MetadataAttributesExtendmr: 0x4321abcd,
+						DataOffset:  0,
+						DataSize:    168,
+						MemoryBase:  0xffe00000,
+						MemorySize:  168,
+						SectionType: 0,
+						Attributes:  0x4321abcd,
 					},
 				},
 			},
@@ -744,7 +744,7 @@ func TestTdxFwParserParse(t *testing.T) {
 				0, 0, 0, 0, 1, 0, 0, 0, // Memory base
 				0xe0, 0, 0, 0, 0, 0, 0, 0, // Memory size (the TD HOB minimum size is 0xd0, but we go higher)
 				2, 0, 0, 0, // Section type TD HOB not counted towards the firmware volumes.
-				0x51, 0, 0, 0, // Metadata attributes extendmr [end of first section]
+				0x51, 0, 0, 0, // Metadata attributes [end of first section]
 
 				// BFV
 				0, 0, 0, 0, // Data offset
@@ -752,7 +752,7 @@ func TestTdxFwParserParse(t *testing.T) {
 				0, 0, 0xe0, 0xff, 0, 0, 0, 0, // Memory base
 				168, 0, 0, 0, 0, 0, 0, 0, // Memory size
 				0, 0, 0, 0, // Section type
-				0xcd, 0xab, 0x21, 0x43, // Metadata attributes extendmr
+				0xcd, 0xab, 0x21, 0x43, // Metadata attributes
 
 				// TDX Metadata offset
 				0x98, 0, 0, 0, // Offset points to the beginning of this input.
@@ -806,6 +806,7 @@ func TestTdxFwParserParse(t *testing.T) {
 							0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 							0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 						},
+						TDVFAttributes: 81,
 					},
 					{GPR: GuestPhysicalRegion{Start: 0xffe00000, Length: 168},
 						HostBuffer: []byte{
@@ -821,13 +822,13 @@ func TestTdxFwParserParse(t *testing.T) {
 							0, 0, 0, 0, 1, 0, 0, 0, // Memory base
 							0xe0, 0, 0, 0, 0, 0, 0, 0, // Memory size
 							2, 0, 0, 0, // Section type TD HOB not counted towards the firmware volumes.
-							0x51, 0, 0, 0, // Metadata attributes extendmr [end of first section]
+							0x51, 0, 0, 0, // Metadata attributes [end of first section]
 							0, 0, 0, 0, // Data offset
 							168, 0, 0, 0, // Data size
 							0, 0, 0xe0, 0xff, 0, 0, 0, 0, // Memory base
 							168, 0, 0, 0, 0, 0, 0, 0, // Memory size
 							0, 0, 0, 0, // Section type
-							0xcd, 0xab, 0x21, 0x43, // Metadata attributes extendmr
+							0xcd, 0xab, 0x21, 0x43, // Metadata attributes
 
 							0x98, 0, 0, 0, // Offset points to the beginning of this input.
 							22, 0, // size of this entry
@@ -840,6 +841,7 @@ func TestTdxFwParserParse(t *testing.T) {
 							0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 							0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 						},
+						TDVFAttributes: 1126280141,
 					},
 				},
 				TDHOBregion: &MaterialGuestPhysicalRegion{
@@ -881,6 +883,7 @@ func TestTdxFwParserParse(t *testing.T) {
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 					},
+					TDVFAttributes: 81,
 				},
 			},
 		},

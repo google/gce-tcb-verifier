@@ -141,6 +141,10 @@ type tdxFwParser struct {
 	Sections           []*abi.TDXMetadataSection
 	TDHOBregion        *MaterialGuestPhysicalRegion
 	DisableEarlyAccept bool
+	// MeasureAllRegions forces all regions to be measured, even if they are not marked as
+	// extendable in the metadata. This is only to be compatible with earlier versions
+	// Google's hypervisor.
+	MeasureAllRegions bool
 }
 
 func (p *tdxFwParser) validateMetadataSectionGpr(sectionType uint32, gpr GuestPhysicalRegion) error {
@@ -164,17 +168,30 @@ func (p *tdxFwParser) parse(firmware []byte, guestRAMbanks []GuestPhysicalRegion
 	for index, section := range metadata.Sections {
 		gprSize := section.MemorySize
 		gpr := GuestPhysicalRegion{Start: section.MemoryBase, Length: gprSize}
+		attributes := section.Attributes
+		if p.MeasureAllRegions {
+			attributes |= abi.TDXMetadataAttributeExtendMR
+		}
 		privateResources = append(privateResources, gpr)
 		if err := p.validateMetadataSectionGpr(section.SectionType, gpr); err != nil {
 			return nil, err
 		}
 		zeroExtend := func() {
-			p.Regions = append(p.Regions, &MaterialGuestPhysicalRegion{GPR: gpr, HostBuffer: make([]byte, gpr.Length)})
+			var buf []byte
+			if p.MeasureAllRegions {
+				buf = make([]byte, gprSize)
+			}
+			p.Regions = append(p.Regions, &MaterialGuestPhysicalRegion{
+				GPR:            gpr,
+				HostBuffer:     buf,
+				TDVFAttributes: attributes,
+			})
 		}
 		fvExtend := func() {
 			p.Regions = append(p.Regions, &MaterialGuestPhysicalRegion{
-				GPR:        gpr,
-				HostBuffer: firmware[section.DataOffset : section.DataOffset+uint32(gprSize)],
+				GPR:            gpr,
+				HostBuffer:     firmware[section.DataOffset : section.DataOffset+uint32(gprSize)],
+				TDVFAttributes: attributes,
 			})
 		}
 		switch section.SectionType {
@@ -354,9 +371,18 @@ func ExtractMaterialGuestPhysicalRegionsNoUnacceptedMemory(firmware []byte, gues
 	return (&tdxFwParser{}).parse(firmware, guestRAMbanks)
 }
 
+// ExtractMaterialGuestPhysicalRegionsTDHOBBug extracts the TDX guest physical regions from the
+// firmware binary with the direction that the firmware provide some unaccepted memory to the guest
+// OS as *not* marked for acceptance by the firmware. All TDVF Metadata sections are measured to
+// account for a Google hypervisor bug.
+func ExtractMaterialGuestPhysicalRegionsTDHOBBug(firmware []byte, guestRAMbanks []GuestPhysicalRegion) ([]*MaterialGuestPhysicalRegion, error) {
+	return (&tdxFwParser{DisableEarlyAccept: true, MeasureAllRegions: true}).parse(
+		firmware, guestRAMbanks)
+}
+
 // ExtractMaterialGuestPhysicalRegions extracts the TDX guest physical regions from the firmware binary
 // with the direction that the firmware provide some unaccepted memory to the guest OS as *not*
 // marked for acceptance by the firmware.
-func ExtractMaterialGuestPhysicalRegions(firmware []byte, guestRAMbanks []GuestPhysicalRegion) ([]*MaterialGuestPhysicalRegion, error) {
-	return (&tdxFwParser{DisableEarlyAccept: true}).parse(firmware, guestRAMbanks)
+func ExtractMaterialGuestPhysicalRegions(firmware []byte) ([]*MaterialGuestPhysicalRegion, error) {
+	return (&tdxFwParser{DisableEarlyAccept: true}).parse(firmware, nil)
 }

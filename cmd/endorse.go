@@ -77,8 +77,8 @@ func (f *endorseCommand) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().AddGoFlag(
 		amdProductVar(&ec.SevSnp.Product, "snp_product", sgpb.SevProduct_SEV_PRODUCT_MILAN,
 			"SEV-SNP product line. One of Milan, Genoa"))
-	cmd.PersistentFlags().BoolVar(&ec.Tdx.IncludeEarlyAccept, "tdx_include_early_accept", false, "If true, adds MRTD values for all supported machine shapes with all memory configured for acceptance in the firmware.")
-	cmd.PersistentFlags().StringSliceVar(&ec.Tdx.MachineShapes, "tdx_machine_shapes", nil, "GCE machine shapes whose measurement-relevant configuration should be enumerated for endorsement.")
+	cmd.PersistentFlags().BoolVar(&ec.Tdx.IncludeEarlyAccept, "tdx_include_early_accept", false, "DEPRECATED (VMM before Oct 2024): If true, adds MRTD values for all supported machine shapes with all memory configured for acceptance in the firmware.")
+	cmd.PersistentFlags().StringSliceVar(&ec.Tdx.MachineShapes, "tdx_machine_shapes", nil, "DEPRECATED (VMM before Oct 2024): GCE machine shapes whose measurement-relevant configuration should be enumerated for endorsement.")
 	cmd.PersistentFlags().BoolVar(&ec.MeasurementOnly, "measurement_only", false, "Only output the OVMF measurement for added technologies.")
 	cmd.PersistentFlags().StringVar(&ec.SnapshotDir, "snapshot_dir", "", "Write each firmware and its signature to related files in --out_dir.")
 	cmd.PersistentFlags().BoolVar(&ec.SnapshotToHead, "snapshot_to_head", false,

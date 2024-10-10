@@ -739,7 +739,7 @@ func TestTdxPolicy(t *testing.T) {
 	}{
 		{
 			name:  "success",
-			input: []string{endorsementPath, "--ram_gib", "16"},
+			input: []string{endorsementPath},
 			io: &testIO{
 				files: map[string]*ioResult{
 					endorsementPath: &ioResult{readBytes: fakeEndorsement},
@@ -752,7 +752,7 @@ func TestTdxPolicy(t *testing.T) {
 		},
 		{
 			name:  "success binProto",
-			input: []string{endorsementPath, "--ram_gib", "16", "--out", "foo"},
+			input: []string{endorsementPath, "--out", "foo"},
 			io: &testIO{
 				files: map[string]*ioResult{
 					endorsementPath: &ioResult{readBytes: fakeEndorsement},
@@ -766,7 +766,7 @@ func TestTdxPolicy(t *testing.T) {
 		},
 		{
 			name:  "success with base",
-			input: []string{endorsementPath, "--ram_gib", "16", "--out", "foo", "--base", goodBasePath},
+			input: []string{endorsementPath, "--out", "foo", "--base", goodBasePath},
 			io: &testIO{
 				files: map[string]*ioResult{
 					endorsementPath: &ioResult{readBytes: fakeEndorsement},
