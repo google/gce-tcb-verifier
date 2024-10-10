@@ -21,9 +21,9 @@
 package releases
 
 import (
-	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 )
@@ -92,7 +92,7 @@ type VMEndorsementMap_Entry struct {
 	// The path to the signature file that is bundled with this map.
 	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
 	// Timestamp of the entry's addition.
-	CreateTime *timestamp.Timestamp `protobuf:"bytes,3,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
+	CreateTime *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
 }
 
 func (x *VMEndorsementMap_Entry) Reset() {
@@ -141,7 +141,7 @@ func (x *VMEndorsementMap_Entry) GetPath() string {
 	return ""
 }
 
-func (x *VMEndorsementMap_Entry) GetCreateTime() *timestamp.Timestamp {
+func (x *VMEndorsementMap_Entry) GetCreateTime() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreateTime
 	}
@@ -190,7 +190,7 @@ var file_releases_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_releases_proto_goTypes = []interface{}{
 	(*VMEndorsementMap)(nil),       // 0: cloud_vmm_proto.VMEndorsementMap
 	(*VMEndorsementMap_Entry)(nil), // 1: cloud_vmm_proto.VMEndorsementMap.Entry
-	(*timestamp.Timestamp)(nil),    // 2: google.protobuf.Timestamp
+	(*timestamppb.Timestamp)(nil),  // 2: google.protobuf.Timestamp
 }
 var file_releases_proto_depIdxs = []int32{
 	1, // 0: cloud_vmm_proto.VMEndorsementMap.entries:type_name -> cloud_vmm_proto.VMEndorsementMap.Entry
