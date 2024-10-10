@@ -51,11 +51,21 @@ const (
 // Measurement represents the expected MRTD field of a TDX Quote.
 type Measurement struct {
 	digest hash.Hash
+	// MeasureAllRegions forces all regions to be measured, even if they are not marked as
+	// extendable in the metadata. This is only to be compatible with earlier versions
+	// Google's hypervisor.
+	MeasureAllRegions bool
 }
 
 // NewMeasurement returns a new Measurement construct for calculating the TDX MRTD.
 func NewMeasurement() *Measurement {
 	return &Measurement{digest: sha512.New384()}
+}
+
+// NewMeasurementTDHOBBug returns a new Measurement construct for calculating the TDX MRTD.
+// This is only to be compatible with earlier versions of Google's hypervisor.
+func NewMeasurementTDHOBBug() *Measurement {
+	return &Measurement{digest: sha512.New384(), MeasureAllRegions: true}
 }
 
 func (m *Measurement) extend(data []byte) {
@@ -95,7 +105,11 @@ func (m *Measurement) mrExtend(gpa uint64, data []byte) {
 func (m *Measurement) InitMemoryRegion(region *ovmf.MaterialGuestPhysicalRegion) error {
 	gpr := region.GPR
 	data := region.HostBuffer
-	if gpr.Length != uint64(len(data)) {
+	measureBytes := region.TDVFAttributes&abi.TDXMetadataAttributeExtendMR != 0
+	if m.MeasureAllRegions {
+		measureBytes = true
+	}
+	if measureBytes && gpr.Length != uint64(len(data)) {
 		return fmt.Errorf("gpr.Length %d does not match source data size %d", gpr.Length, len(data))
 	}
 	if gpr.Start%abi.PageSize != 0 {
@@ -114,7 +128,9 @@ func (m *Measurement) InitMemoryRegion(region *ovmf.MaterialGuestPhysicalRegion)
 		if i%abi.PageSize == 0 {
 			m.pageAdd(gpa + uint64(i))
 		}
-		m.mrExtend(gpa+uint64(i), data[i:i+mrExtendChunkSize])
+		if measureBytes {
+			m.mrExtend(gpa+uint64(i), data[i:i+mrExtendChunkSize])
+		}
 	}
 	return nil
 }

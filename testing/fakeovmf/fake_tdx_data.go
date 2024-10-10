@@ -35,12 +35,12 @@ func defaultTdxMetadata() *abi.TDXMetadata {
 		},
 		Sections: []*abi.TDXMetadataSection{
 			{
-				DataOffset:                 0x20000,
-				DataSize:                   0x1e0000,
-				MemoryBase:                 0xffe20000,
-				MemorySize:                 0x1e0000,
-				SectionType:                abi.TDXMetadataSectionTypeBFV,
-				MetadataAttributesExtendmr: 1,
+				DataOffset:  0x20000,
+				DataSize:    0x1e0000,
+				MemoryBase:  0xffe20000,
+				MemorySize:  0x1e0000,
+				SectionType: abi.TDXMetadataSectionTypeBFV,
+				Attributes:  1,
 			},
 			{
 				DataSize:    0x20000,

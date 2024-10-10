@@ -89,6 +89,9 @@ const (
 	// TDXMetadataVersion is the versioning value for the metadata embedded in the firmware about the
 	// TDVF.
 	TDXMetadataVersion = 1
+	// TDXMetadataAttributeExtendMR is the attribute for a metadata section that is used to extend the
+	// TD measurement register of the guest.
+	TDXMetadataAttributeExtendMR = 0x00000001
 
 	// TDXMetadataOffsetGUID contains launch configuration for TDX VMs.
 	TDXMetadataOffsetGUID = "e47a6535-984a-4798-865e-4685a7bf8ec2"
@@ -359,12 +362,12 @@ func (h *TDXMetadataDescriptor) Put(data []byte) error {
 
 // TDXMetadataSection is information the VMM needs in order to configure TDX for the firmware.
 type TDXMetadataSection struct {
-	DataOffset                 uint32
-	DataSize                   uint32
-	MemoryBase                 EFIPhysicalAddress
-	MemorySize                 uint64
-	SectionType                uint32
-	MetadataAttributesExtendmr uint32
+	DataOffset  uint32
+	DataSize    uint32
+	MemoryBase  EFIPhysicalAddress
+	MemorySize  uint64
+	SectionType uint32
+	Attributes  uint32
 }
 
 // TDXMetadataSectionFromBytes returns a parsed TDX metadata section from the OVMF GUID block.
@@ -373,12 +376,12 @@ func TDXMetadataSectionFromBytes(data []byte) (*TDXMetadataSection, error) {
 		return nil, fmt.Errorf("data too small for TDX metadata section: %d < %d", len(data), SizeofTDXMetdataSection)
 	}
 	return &TDXMetadataSection{
-		DataOffset:                 binary.LittleEndian.Uint32(data[0:4]),
-		DataSize:                   binary.LittleEndian.Uint32(data[4:8]),
-		MemoryBase:                 EFIPhysicalAddress(binary.LittleEndian.Uint64(data[8:16])),
-		MemorySize:                 binary.LittleEndian.Uint64(data[16:24]),
-		SectionType:                binary.LittleEndian.Uint32(data[24:28]),
-		MetadataAttributesExtendmr: binary.LittleEndian.Uint32(data[28:32]),
+		DataOffset:  binary.LittleEndian.Uint32(data[0:4]),
+		DataSize:    binary.LittleEndian.Uint32(data[4:8]),
+		MemoryBase:  EFIPhysicalAddress(binary.LittleEndian.Uint64(data[8:16])),
+		MemorySize:  binary.LittleEndian.Uint64(data[16:24]),
+		SectionType: binary.LittleEndian.Uint32(data[24:28]),
+		Attributes:  binary.LittleEndian.Uint32(data[28:32]),
 	}, nil
 }
 
@@ -392,7 +395,7 @@ func (s *TDXMetadataSection) Put(data []byte) error {
 	binary.LittleEndian.PutUint64(data[8:16], uint64(s.MemoryBase))
 	binary.LittleEndian.PutUint64(data[16:24], s.MemorySize)
 	binary.LittleEndian.PutUint32(data[24:28], s.SectionType)
-	binary.LittleEndian.PutUint32(data[28:32], s.MetadataAttributesExtendmr)
+	binary.LittleEndian.PutUint32(data[28:32], s.Attributes)
 	return nil
 }
 

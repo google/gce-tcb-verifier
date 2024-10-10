@@ -37,7 +37,7 @@ func cleanSnp(fw []byte) {
 }
 
 func cleanTdx(fw []byte) {
-	meas, err := tdx.MRTD(tdx.LaunchOptionsDefault("c3-standard-4"), fw)
+	meas, err := tdx.MRTD(tdx.LaunchOptionsDefault(""), fw)
 	if err != nil {
 		fmt.Print(err)
 		os.Exit(1)

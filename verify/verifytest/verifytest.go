@@ -39,8 +39,8 @@ const (
 	// CleanExampleMeasurement is the hex encoding of a 2MiB 1 VMSA measurement of the CleanExample
 	// firmware binary.
 	CleanExampleMeasurement = "20ec0dbd1c0a26d184a6f11ec5a796d68ec03c9d101bdd84c03f3d9cbbc4a292a9fad098edacfa04da0da58f20be885e"
-	// CleanTdxExampleMeasurement is the hex encoding of a 2MiB c3-standard-4 measurement of the CleanExample.
-	CleanTdxExampleMeasurement = "0d126d4468fba7200f214da27e6a729846cb2fe6ab084a2c15bb39ac85d193ed7f050525a1cd96052d0597362356c9ac"
+	// CleanTdxExampleMeasurement is the hex encoding of a 2MiB measurement of the CleanExample.
+	CleanTdxExampleMeasurement = "69a06a9d7e18490bafaf7427734d7f199dc1a4790a1e42be0c184ba7fc6ca3be1f60c0c18969e9acd53a0d0174c2b2b9"
 	// CleanExampleURL is the URL of the endorsement of the CleanExample firmware binary.
 	CleanExampleURL = "https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/20ec0dbd1c0a26d184a6f11ec5a796d68ec03c9d101bdd84c03f3d9cbbc4a292a9fad098edacfa04da0da58f20be885e.binarypb"
 )

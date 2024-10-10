@@ -25,15 +25,21 @@ type EndorsementRequest struct {
 	Svn uint32
 	// IncludeEarlyAccept if true adds a second set of measurements where all memory is accepted
 	// and therefore has different measured resource attributes.
+	//
+	// To be deprecated with bug fix rollout.
 	IncludeEarlyAccept bool
-	// The list of machine shapes whose configuration is relevant to measurement.
+	// The list of machine shapes whose configuration is relevant to measurement. Only relevant if
+	// measureAllRegions is true to account for the Google hypervisor bug.
+	//
+	// To be deprecated with bug fix rollout.
 	MachineShapes []string
 }
 
 func generateAllPossibleMRTDs(uefi []byte, tdxRequest *EndorsementRequest) ([]*epb.VMTdx_Measurement, error) {
 	var result []*epb.VMTdx_Measurement
+	// Deprecated: To be removed.
 	for _, shape := range tdxRequest.MachineShapes {
-		options := LaunchOptionsDefault(shape)
+		options := LaunchOptionsDefaultTDHOBBug(shape)
 		meas, err := MRTD(options, uefi)
 		if err != nil {
 			return nil, err
@@ -52,17 +58,16 @@ func generateAllPossibleMRTDs(uefi []byte, tdxRequest *EndorsementRequest) ([]*e
 			})
 		}
 	}
+	meas, err := MRTD(LaunchOptionsDefault(""), uefi)
+	if err != nil {
+		return nil, err
+	}
+	result = append(result, &epb.VMTdx_Measurement{Mrtd: meas[:]})
 	return result, nil
 }
 
 // UnsignedTDX returns the TDX component of a GoldenMeasurement for a given UEFI.
 func UnsignedTDX(uefi []byte, tdxRequest *EndorsementRequest) (*epb.VMTdx, error) {
-	// If no machine shapes are given, use all known shapes.
-	if tdxRequest.MachineShapes == nil {
-		for shape := range shapeDesc {
-			tdxRequest.MachineShapes = append(tdxRequest.MachineShapes, shape)
-		}
-	}
 	// Create the basis for all endorsements.
 	measurements, err := generateAllPossibleMRTDs(uefi, tdxRequest)
 	if err != nil {

@@ -81,26 +81,49 @@ func machineTypeToRAMBanks(machineType string) ([]ovmf.GuestPhysicalRegion, erro
 // LaunchOptions contains GCE API surface options for launching a TDX VM that translate into the
 // relevant memory bank topology for measurement.
 type LaunchOptions struct {
-	GuestRAMBanks           []ovmf.GuestPhysicalRegion
+	// GuestRAMBanks describes the RAM banks that inform TDHOB's construction.
+	//
+	// Deprecated: to be removed.
+	GuestRAMBanks []ovmf.GuestPhysicalRegion
+	// DisableUnacceptedMemory adds the early accept attribute to all memory in the TDHOB.
+	//
+	// Deprecated: to be removed.
 	DisableUnacceptedMemory bool
+	// MeasureAllRegions forces all regions to be measured, even if they are not marked as
+	// extendable in the metadata. This is only to be compatible with earlier versions
+	// Google's hypervisor.
+	MeasureAllRegions bool
 }
 
 // LaunchOptionsDefault returns a default LaunchOptions instance.
-func LaunchOptionsDefault(machineType string) *LaunchOptions {
+func LaunchOptionsDefault(_ string) *LaunchOptions {
+	return &LaunchOptions{}
+}
+
+// LaunchOptionsDefaultTDHOBBug returns a default LaunchOptions instance that accounts for the
+// Google hypervisor bug that measures all TDVF metadata regions.
+func LaunchOptionsDefaultTDHOBBug(machineType string) *LaunchOptions {
 	banks, _ := machineTypeToRAMBanks(machineType)
-	return &LaunchOptions{GuestRAMBanks: banks}
+	return &LaunchOptions{GuestRAMBanks: banks, MeasureAllRegions: true}
 }
 
 // MRTD returns the expected MRTD from booting a given OVMF and Google Compute Engine configuration.
 func MRTD(opts *LaunchOptions, fw []byte) ([48]byte, error) {
 	var regions []*ovmf.MaterialGuestPhysicalRegion
 	var err error
-	m := NewMeasurement()
-	if opts.DisableUnacceptedMemory {
+	var m *Measurement
+	if opts.MeasureAllRegions {
+		m = NewMeasurementTDHOBBug()
+	} else {
+		m = NewMeasurement()
+	}
+	if opts.MeasureAllRegions {
+		regions, err = ovmf.ExtractMaterialGuestPhysicalRegionsTDHOBBug(fw, opts.GuestRAMBanks)
+	} else if opts.DisableUnacceptedMemory {
 		regions, err = ovmf.ExtractMaterialGuestPhysicalRegionsNoUnacceptedMemory(
 			fw, opts.GuestRAMBanks)
 	} else {
-		regions, err = ovmf.ExtractMaterialGuestPhysicalRegions(fw, opts.GuestRAMBanks)
+		regions, err = ovmf.ExtractMaterialGuestPhysicalRegions(fw)
 	}
 	if err != nil {
 		return [48]byte{}, err
