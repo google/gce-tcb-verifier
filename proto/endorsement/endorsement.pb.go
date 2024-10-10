@@ -21,9 +21,9 @@
 package endorsement
 
 import (
-	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 )
@@ -95,7 +95,7 @@ type VMGoldenMeasurement struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Timestamp *timestamp.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Timestamp *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// The changelist number this UEFI was built from.
 	ClSpec uint64 `protobuf:"varint,2,opt,name=cl_spec,json=clSpec,proto3" json:"cl_spec,omitempty"`
 	// The commit hash this UEFI was built from.
@@ -143,7 +143,7 @@ func (*VMGoldenMeasurement) Descriptor() ([]byte, []int) {
 	return file_endorsement_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *VMGoldenMeasurement) GetTimestamp() *timestamp.Timestamp {
+func (x *VMGoldenMeasurement) GetTimestamp() *timestamppb.Timestamp {
 	if x != nil {
 		return x.Timestamp
 	}
@@ -504,13 +504,13 @@ func file_endorsement_proto_rawDescGZIP() []byte {
 
 var file_endorsement_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_endorsement_proto_goTypes = []interface{}{
-	(*VMLaunchEndorsement)(nil), // 0: cloud_vmm_proto.VMLaunchEndorsement
-	(*VMGoldenMeasurement)(nil), // 1: cloud_vmm_proto.VMGoldenMeasurement
-	(*VMSevSnp)(nil),            // 2: cloud_vmm_proto.VMSevSnp
-	(*VMTdx)(nil),               // 3: cloud_vmm_proto.VMTdx
-	nil,                         // 4: cloud_vmm_proto.VMSevSnp.MeasurementsEntry
-	(*VMTdx_Measurement)(nil),   // 5: cloud_vmm_proto.VMTdx.Measurement
-	(*timestamp.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(*VMLaunchEndorsement)(nil),   // 0: cloud_vmm_proto.VMLaunchEndorsement
+	(*VMGoldenMeasurement)(nil),   // 1: cloud_vmm_proto.VMGoldenMeasurement
+	(*VMSevSnp)(nil),              // 2: cloud_vmm_proto.VMSevSnp
+	(*VMTdx)(nil),                 // 3: cloud_vmm_proto.VMTdx
+	nil,                           // 4: cloud_vmm_proto.VMSevSnp.MeasurementsEntry
+	(*VMTdx_Measurement)(nil),     // 5: cloud_vmm_proto.VMTdx.Measurement
+	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
 }
 var file_endorsement_proto_depIdxs = []int32{
 	6, // 0: cloud_vmm_proto.VMGoldenMeasurement.timestamp:type_name -> google.protobuf.Timestamp
