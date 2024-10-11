@@ -124,12 +124,12 @@ func (m *Measurement) InitMemoryRegion(region *ovmf.MaterialGuestPhysicalRegion)
 	gpa := uint64(gpr.Start)
 	// Every 4K page is added and then measured in the kvm ioctl KVM_INIT_MEM_REGION.
 	// There are no large pages for measurement.
-	for i := 0; i < len(data); i += mrExtendChunkSize {
+	for i := uint64(0); i < region.GPR.Length; i += mrExtendChunkSize {
 		if i%abi.PageSize == 0 {
-			m.pageAdd(gpa + uint64(i))
+			m.pageAdd(gpa + i)
 		}
 		if measureBytes {
-			m.mrExtend(gpa+uint64(i), data[i:i+mrExtendChunkSize])
+			m.mrExtend(gpa+i, data[i:i+mrExtendChunkSize])
 		}
 	}
 	return nil
