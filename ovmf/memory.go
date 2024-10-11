@@ -77,6 +77,6 @@ type GuestPhysicalRegion struct {
 type MaterialGuestPhysicalRegion struct {
 	GPR        GuestPhysicalRegion
 	HostBuffer []byte
-	// TDVFAttributes is a TDVF-only field for a bitset of directives the the VMM.
+	// TDVFAttributes is a TDVF-only field for a bitset of directives for the VMM.
 	TDVFAttributes uint32
 }
