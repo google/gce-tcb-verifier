@@ -104,6 +104,11 @@ endorsement for the firmware the VM is running.
 gcetcbendorsement extract --out="${ENDORSEMENT_PATH?}"
 ```
 
+While rare, there may be cases that the endorsement delivered in-guest contains an error.
+In this case, an amended endorsement for the firmware may be posted in the storage bucket.
+Pass `--force_fetch` to fall back to the free storage bucket that provides a fallback
+source for firmware endorsements.
+
 ### Extract the endorsement from a GCE VM attestation report
 
 If not on the node itself, the measurement itself is enough to identify a copy
