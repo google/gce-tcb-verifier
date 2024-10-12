@@ -117,11 +117,11 @@ func MRTD(opts *LaunchOptions, fw []byte) ([48]byte, error) {
 	} else {
 		m = NewMeasurement()
 	}
-	if opts.MeasureAllRegions {
-		regions, err = ovmf.ExtractMaterialGuestPhysicalRegionsTDHOBBug(fw, opts.GuestRAMBanks)
-	} else if opts.DisableUnacceptedMemory {
+	if opts.DisableUnacceptedMemory {
 		regions, err = ovmf.ExtractMaterialGuestPhysicalRegionsNoUnacceptedMemory(
 			fw, opts.GuestRAMBanks)
+	} else if opts.MeasureAllRegions {
+		regions, err = ovmf.ExtractMaterialGuestPhysicalRegionsTDHOBBug(fw, opts.GuestRAMBanks)
 	} else {
 		regions, err = ovmf.ExtractMaterialGuestPhysicalRegions(fw)
 	}

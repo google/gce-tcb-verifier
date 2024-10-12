@@ -368,7 +368,7 @@ func (p *tdxFwParser) getTDHOBList(privateResources []GuestPhysicalRegion, unacc
 // ExtractMaterialGuestPhysicalRegionsNoUnacceptedMemory extracts the TDX guest physical regions from
 // the firmware binary with the direction that all memory will be accepted early in the firmware.
 func ExtractMaterialGuestPhysicalRegionsNoUnacceptedMemory(firmware []byte, guestRAMbanks []GuestPhysicalRegion) ([]*MaterialGuestPhysicalRegion, error) {
-	return (&tdxFwParser{}).parse(firmware, guestRAMbanks)
+	return (&tdxFwParser{MeasureAllRegions: true}).parse(firmware, guestRAMbanks)
 }
 
 // ExtractMaterialGuestPhysicalRegionsTDHOBBug extracts the TDX guest physical regions from the
