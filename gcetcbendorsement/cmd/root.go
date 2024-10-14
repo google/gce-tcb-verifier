@@ -105,19 +105,25 @@ func (qp *tdxQuoteProvider) GetRawQuote(reportData [64]byte) ([]uint8, error) {
 	return qp.p.GetRawQuote(reportData)
 }
 func createTdxQuoteProvider() extract.QuoteProvider {
-	tdp, _ := tdclient.GetQuoteProvider() // Never errors.
+	tdp, err := tdclient.GetQuoteProvider()
+	if err != nil {
+		return nil
+	}
 	return &tdxQuoteProvider{p: tdp}
 }
 
 func createSnpQuoteProvider() extract.QuoteProvider {
-	sp, _ := client.GetQuoteProvider() // Never errors.
+	sp, err := client.GetQuoteProvider()
+	if err != nil {
+		return nil
+	}
 	return sp
 }
 
 func getProvider() (p extract.QuoteProvider) {
 	creators := []func() extract.QuoteProvider{createSnpQuoteProvider, createTdxQuoteProvider}
 	for _, c := range creators {
-		if p := c(); p.IsSupported() {
+		if p := c(); p != nil && p.IsSupported() {
 			return p
 		}
 	}
