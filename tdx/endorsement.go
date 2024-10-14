@@ -50,11 +50,11 @@ func generateAllPossibleMRTDs(uefi []byte, tdxRequest *EndorsementRequest) ([]*e
 		})
 		if tdxRequest.IncludeEarlyAccept {
 			options.DisableUnacceptedMemory = true
-			meas, _ = MRTD(options, uefi)
+			meas2, _ := MRTD(options, uefi)
 			result = append(result, &epb.VMTdx_Measurement{
 				RamGib:      uint32(shapeDesc[shape].size),
 				EarlyAccept: true,
-				Mrtd:        meas[:],
+				Mrtd:        meas2[:],
 			})
 		}
 	}
