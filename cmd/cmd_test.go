@@ -246,7 +246,7 @@ func TestSevSnpMeasurementOnly(t *testing.T) {
 	c := &cobra.Command{
 		PersistentPreRunE: cmp.PersistentPreRunE,
 		RunE: ComposeRun(cmp, func(ctx context.Context) error {
-			return endorse.Ovmf(ctx)
+			return endorse.VirtualFirmware(ctx)
 		}),
 	}
 	var firmware [0x1000]byte
