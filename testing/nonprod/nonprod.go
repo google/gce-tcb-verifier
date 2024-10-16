@@ -23,6 +23,7 @@ import (
 	"github.com/google/gce-tcb-verifier/cmd"
 	"github.com/google/gce-tcb-verifier/endorse"
 	"github.com/google/gce-tcb-verifier/sign/nonprod"
+	"github.com/google/gce-tcb-verifier/storage/local/local"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/localca"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/localkm"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/localnonvcs"
@@ -46,6 +47,7 @@ func localApp() *cmd.AppComponents {
 		Global: cmd.Compose(&localkm.T{T: memkm.T{Signer: &nonprod.Signer{Rand: rand.Reader}}},
 			&localca.T{}),
 		SignatureRandom: rand.Reader,
+		Storage:         &local.StorageClient{},
 	}
 }
 

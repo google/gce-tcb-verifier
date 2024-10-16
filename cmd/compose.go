@@ -19,6 +19,7 @@ import (
 	"io"
 
 	"github.com/spf13/cobra"
+	"github.com/google/gce-tcb-verifier/storage/storagei/storagei"
 )
 
 // CommandComponent represents any setup that must happen before running a command.
@@ -52,6 +53,8 @@ type AppComponents struct {
 	// Wipeout abstracts any extra setup to do on top of the base before destroying all keys and
 	// key certificates.
 	Wipeout CommandComponent
+	// Storage abstracts reading and writing files.
+	Storage storagei.Client
 }
 
 // MakeApp returns an initialized cobra root command for a CLI tool that includes all expected
