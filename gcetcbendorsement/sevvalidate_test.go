@@ -68,8 +68,8 @@ func TestSevValidate(t *testing.T) {
 	ctx1 := keys.NewContext(ctx0, kc)
 	ctx2 := endorse.NewContext(ctx1, ec)
 	// Create a test endorsement of the clean example firmware.
-	if err := endorse.Ovmf(ctx2); err != nil {
-		t.Fatalf("endorse.Ovmf() = %v, want nil", err)
+	if err := endorse.VirtualFirmware(ctx2); err != nil {
+		t.Fatalf("endorse.VirtualFirmware() = %v, want nil", err)
 	}
 	endorsementPath := path.Join(dir, "endorsement.binarypb")
 	endorsement, err := os.ReadFile(endorsementPath)

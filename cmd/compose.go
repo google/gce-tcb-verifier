@@ -18,8 +18,8 @@ import (
 	"context"
 	"io"
 
+	"github.com/google/gce-tcb-verifier/storage/storagei"
 	"github.com/spf13/cobra"
-	"github.com/google/gce-tcb-verifier/storage/storagei/storagei"
 )
 
 // CommandComponent represents any setup that must happen before running a command.

@@ -17,6 +17,7 @@ package cmd
 import (
 	"context"
 	"crypto"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -26,7 +27,10 @@ import (
 
 	"github.com/google/gce-tcb-verifier/endorse"
 	"github.com/google/gce-tcb-verifier/sev"
+	"github.com/google/gce-tcb-verifier/storage/ops"
+	"github.com/google/gce-tcb-verifier/storage/storagei"
 	"github.com/google/gce-tcb-verifier/tdx"
+	sgabi "github.com/google/go-sev-guest/abi"
 
 	edk2pb "github.com/google/gce-tcb-verifier/proto/scrtmversion"
 	sgpb "github.com/google/go-sev-guest/proto/sevsnp"
@@ -35,12 +39,19 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const noBucket = ""
+
 // endorseCommand stores the common flag values for the endorse subcommand that isn't directly
 // represented in endorse.Context.
 type endorseCommand struct {
-	AddSnp   bool
-	AddTdx   bool
-	UefiPath string
+	// Filesystem abstraction for reading files passed in as flags.
+	Storage storagei.Client
+
+	AddSnp                 bool
+	AddTdx                 bool
+	UefiPath               string
+	SvsmPath               string
+	SvsmSnpMeasurementPath string
 }
 
 // AddFlags adds any implementation-specific flags for this command component.
@@ -50,6 +61,8 @@ func (f *endorseCommand) AddFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(&f.AddTdx, "add_tdx", false,
 		"Add Intel TDX information to endorsement")
 	addUefiFlag(cmd, &f.UefiPath)
+	cmd.PersistentFlags().StringVar(&f.SvsmPath, "svsm_path", "", "Path to SVSM binary")
+	cmd.PersistentFlags().StringVar(&f.SvsmSnpMeasurementPath, "svsm_snp_measurement_path", "", "Path to SVSM measurement file for SEV-SNP")
 
 	ec := &endorse.Context{
 		SevSnp: &sev.SnpEndorsementRequest{},
@@ -180,16 +193,36 @@ func (f *endorseCommand) InitContext(ctx context.Context) (context.Context, erro
 	if err != nil {
 		return nil, fmt.Errorf("could not read UEFI file %s: %v", f.UefiPath, err)
 	}
+	if f.SvsmPath != "" {
+		ec.SvsmImage, err = ops.ReadFile(ctx, f.Storage, noBucket, f.SvsmPath)
+		if err != nil {
+			return nil, fmt.Errorf("could not read SVSM file %s: %v", f.SvsmPath, err)
+		}
+	}
+	if f.SvsmSnpMeasurementPath != "" {
+		snpMeasurementTxt, err := ops.ReadFile(ctx, f.Storage, noBucket, f.SvsmSnpMeasurementPath)
+		if err != nil {
+			return nil, fmt.Errorf("could not read SVSM SNP measurement file: %v", err)
+		}
+
+		ec.SvsmSnpMeasurement, err = hex.DecodeString(strings.TrimSpace(string(snpMeasurementTxt)))
+		if err != nil {
+			return nil, fmt.Errorf("could not parse SVSM SNP measurement file %q: %v", f.SvsmSnpMeasurementPath, err)
+		}
+		if len(ec.SvsmSnpMeasurement) != sgabi.MeasurementSize {
+			return nil, fmt.Errorf("SVSM IGVM measurement for SEV-SNP is %d bytes. Expected %d", len(ec.SvsmSnpMeasurement), sgabi.MeasurementSize)
+		}
+	}
 
 	return ctx, nil
 }
 
 func makeEndorseCmd(ctx context.Context, app *AppComponents) *cobra.Command {
-	cmp := Compose(app.Global, &endorseCommand{}, app.Endorse)
+	cmp := Compose(app.Global, &endorseCommand{Storage: app.Storage}, app.Endorse)
 	cmd := &cobra.Command{
 		Use:               "endorse",
 		PersistentPreRunE: cmp.PersistentPreRunE,
-		RunE:              ComposeRun(cmp, endorse.Ovmf),
+		RunE:              ComposeRun(cmp, endorse.VirtualFirmware),
 	}
 	cmd.SetContext(ctx)
 	cmp.AddFlags(cmd)

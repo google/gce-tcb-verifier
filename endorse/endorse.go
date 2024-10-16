@@ -77,6 +77,10 @@ type Context struct {
 	SnapshotToHead bool
 	// ImageName is the path under SnapshotDir to write the firmware and its endorsement.
 	ImageName string
+	// SvsmImage is the full contents of the SVSM IGVM, if supplied.
+	SvsmImage []byte
+	// SvsmSnpMeasurement is expected SEV-SNP measurement of the SVSM, if supplied.
+	SvsmSnpMeasurement []byte
 }
 
 type endorseKeyType struct{}
@@ -119,6 +123,7 @@ func GoldenMeasurement(ctx context.Context) (*epb.VMGoldenMeasurement, error) {
 		if err != nil {
 			return nil, err
 		}
+		snp.SvsmMeasurement = ec.SvsmSnpMeasurement
 		goldenBuilder.SevSnp = snp
 	}
 	if ec.Tdx != nil {
@@ -128,6 +133,7 @@ func GoldenMeasurement(ctx context.Context) (*epb.VMGoldenMeasurement, error) {
 		}
 		goldenBuilder.Tdx = tdx
 	}
+
 	return goldenBuilder, nil
 }
 
@@ -198,9 +204,10 @@ func outputTdxMeasurement(_ *Context, tdx *epb.VMTdx) {
 	}
 }
 
-// Ovmf calculates the golden measurement of the given OVMF image, signs a document with the
-// measurement and associated metadata, submits it, and performs finalization.
-func Ovmf(ctx context.Context) error {
+// VirtualFirmware calculates the golden measurement of the given OVMF and (if
+// supplied) SVSM image, signs a document with the measurement and associated
+// metadata, submits it, and performs finalization.
+func VirtualFirmware(ctx context.Context) error {
 	ec, err := FromContext(ctx)
 	if err != nil {
 		return err

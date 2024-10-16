@@ -267,6 +267,7 @@ func snapshotEndorsement(ctx context.Context, cops ChangeOps, endorsement *epb.V
 		return err
 	}
 	fwPath := ec.VCS.ReleasePath(ctx, path.Join(ec.SnapshotDir, ec.ImageName))
+	svsmPath := ec.VCS.ReleasePath(ctx, path.Join(ec.SnapshotDir, "svsm.igvm"))
 	sigPath := fmt.Sprintf("%s.signed", fwPath)
 	evtsPath := fmt.Sprintf("%s.evts.pb", fwPath)
 	if err := writeEndorsement(ctx, sigPath, endorsement, cops); err != nil {
@@ -283,9 +284,14 @@ func snapshotEndorsement(ctx context.Context, cops ChangeOps, endorsement *epb.V
 	if err != nil {
 		return err
 	}
-	if err := cops.WriteOrCreateFiles(ctx,
-		&File{Path: fwPath, Contents: ec.Image},
-		&File{Path: evtsPath, Contents: events}); err != nil {
+	files := []*File{
+		{Path: fwPath, Contents: ec.Image},
+		{Path: evtsPath, Contents: events},
+	}
+	if len(ec.SvsmImage) != 0 {
+		files = append(files, &File{Path: svsmPath, Contents: ec.SvsmImage})
+	}
+	if err := cops.WriteOrCreateFiles(ctx, files...); err != nil {
 		return err
 	}
 	if err := cops.SetBinaryWritable(ctx, fwPath); err != nil {
@@ -293,6 +299,11 @@ func snapshotEndorsement(ctx context.Context, cops ChangeOps, endorsement *epb.V
 	}
 	if err := cops.SetBinaryWritable(ctx, evtsPath); err != nil {
 		return fmt.Errorf("could not set %q type to binary: %w", evtsPath, err)
+	}
+	if len(ec.SvsmImage) != 0 {
+		if err := cops.SetBinaryWritable(ctx, svsmPath); err != nil {
+			return fmt.Errorf("could not set %q type to binary: %w", svsmPath, err)
+		}
 	}
 	return nil
 }

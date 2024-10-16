@@ -66,6 +66,10 @@ message VMSevSnp {
   // Optional. PEM-encoded certs for Identity..Author..Root. If a singleton,
   // only an Id-key is used.
   bytes ca_bundle = 6;
+
+  // Expected SEV-SNP launch measurement as reported by igvmmeasure (and its hex
+  // digits are decoded). Use igvmmeasure's --native_zero.
+  bytes svsm_measurement = 7;
 }
 
 message VMTdx {

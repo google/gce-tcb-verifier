@@ -23,7 +23,7 @@ import (
 	"github.com/google/gce-tcb-verifier/cmd"
 	"github.com/google/gce-tcb-verifier/endorse"
 	"github.com/google/gce-tcb-verifier/sign/nonprod"
-	"github.com/google/gce-tcb-verifier/storage/local/local"
+	"github.com/google/gce-tcb-verifier/storage/local"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/localca"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/localkm"
 	"github.com/google/gce-tcb-verifier/testing/nonprod/localnonvcs"
