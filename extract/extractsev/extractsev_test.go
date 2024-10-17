@@ -73,7 +73,7 @@ func TestFromCertTable(t *testing.T) {
 			table: (&abi.CertTable{
 				Entries: []abi.CertTableEntry{
 					{
-						GUID:    fwGUID[:],
+						GUID:    fwGUID,
 						RawCert: []byte("found"),
 					},
 				},

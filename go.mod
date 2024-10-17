@@ -9,7 +9,7 @@ require (
 	github.com/golang/protobuf v1.5.4
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-configfs-tsm v0.2.2
-	github.com/google/go-sev-guest v0.11.1
+	github.com/google/go-sev-guest v0.11.2-0.20241017023127-f94d851ddd48
 	github.com/google/go-tdx-guest v0.3.1
 	github.com/google/go-tpm-tools v0.4.4
 	github.com/google/logger v1.1.1
