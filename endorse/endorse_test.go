@@ -15,7 +15,9 @@
 package endorse
 
 import (
+	"bytes"
 	"context"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -37,11 +39,61 @@ import (
 const signKey = "test-signer"
 
 var (
-	now = time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)
-	s   *nonprod.Signer
-	ca  *memca.CertificateAuthority
-	mu  sync.Once
+	now  = time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)
+	s    *nonprod.Signer
+	ca   *memca.CertificateAuthority
+	mu   sync.Once
+	ones = &readOnes{}
 )
+
+type readOnes struct{}
+
+func (*readOnes) Read(b []byte) (int, error) {
+	for i := range b {
+		b[i] = 1
+	}
+	return len(b), nil
+}
+
+type fakeVcs struct {
+	files  map[string][]byte
+	binary map[string]bool
+}
+
+func newFakeVcs() *fakeVcs { return &fakeVcs{files: map[string][]byte{}, binary: map[string]bool{}} }
+
+func (v *fakeVcs) GetChangeOps(context.Context) (ChangeOps, error) {
+	return &fakeChangeOps{vcs: v}, nil
+}
+
+func (*fakeVcs) RetriableError(error) bool                         { return false }
+func (*fakeVcs) Result(any, string) any                            { return nil }
+func (*fakeVcs) ReleasePath(_ context.Context, path string) string { return path }
+
+type fakeChangeOps struct {
+	vcs *fakeVcs
+}
+
+func (c *fakeChangeOps) WriteOrCreateFiles(_ context.Context, files ...*File) error {
+	for _, f := range files {
+		c.vcs.files[f.Path] = f.Contents
+	}
+	return nil
+}
+func (c *fakeChangeOps) ReadFile(_ context.Context, path string) ([]byte, error) {
+	data, ok := c.vcs.files[path]
+	if !ok {
+		return nil, os.ErrNotExist
+	}
+	return data, nil
+}
+func (c *fakeChangeOps) SetBinaryWritable(_ context.Context, path string) error {
+	c.vcs.binary[path] = true
+	return nil
+}
+func (*fakeChangeOps) IsNotFound(err error) bool              { return os.IsNotExist(err) }
+func (*fakeChangeOps) Destroy()                               {}
+func (*fakeChangeOps) TryCommit(context.Context) (any, error) { return nil, nil }
 
 func initTest(t testing.TB) {
 	mu.Do(func() {
@@ -146,6 +198,55 @@ func TestBadRequest(t *testing.T) {
 		_, err := GoldenMeasurement(NewContext(context.Background(), tc.input))
 		if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 			t.Errorf("%s: SignDoc() = %v, want %s", tc.name, err, tc.wantErr)
+		}
+	}
+}
+
+func TestChangeEndorsementsSvsm(t *testing.T) {
+	initTest(t)
+	ctx0 := context.Background()
+	vcs := newFakeVcs()
+	svsmBytes := []byte("svsm")
+	imageBytes := []byte("image")
+	c := &Context{
+		Image:              imageBytes,
+		ImageName:          "uefi.fd",
+		SvsmImage:          svsmBytes,
+		SvsmSnpMeasurement: []byte("0123456789abcdef0123456789abcdef0123456789abcdef"),
+		SnapshotDir:        "c",
+		VCS:                vcs,
+		OutDir:             "a/b",
+	}
+	endorsement := &epb.VMLaunchEndorsement{SerializedUefiGolden: []byte("nope")}
+	endorseBytes, _ := proto.Marshal(endorsement)
+	evtsBytes, err := makeEvents(ones, endorsement)
+	if err != nil {
+		t.Fatalf("makeEvents(ones, %v) = _, %v want nil", endorsement, err)
+	}
+	ctx := NewContext(keys.NewContext(ctx0, &keys.Context{Random: ones}), c)
+	cops, err := vcs.GetChangeOps(ctx)
+	if err != nil {
+		t.Fatalf("Could not create test ChangeOps: %v", err)
+	}
+	if _, err := changeEndorsements(ctx, cops, endorsement); err != nil {
+		t.Fatalf("changeEndorsements({..%v}, ..) = %v want nil", c, err)
+	}
+	want := []struct {
+		path     string
+		contents []byte
+	}{
+		{path: "c/svsm.igvm", contents: svsmBytes},
+		{path: "c/svsm.igvm.signed", contents: endorseBytes},
+		{path: "c/svsm.igvm.evts.pb", contents: evtsBytes},
+		{path: "c/uefi.fd", contents: imageBytes},
+		{path: "c/uefi.fd.signed", contents: endorseBytes},
+		{path: "c/uefi.fd.evts.pb", contents: evtsBytes},
+	}
+	for _, w := range want {
+		// The state change should be that both UEFI and SVSM are written, and their evts and
+		// scrtm_ver are the same.
+		if r, err := cops.ReadFile(ctx, w.path); err != nil || !bytes.Equal(r, w.contents) {
+			t.Fatalf("output %q read (%v) contents %v, want %v (%v)", w.path, err, r, w.contents, vcs)
 		}
 	}
 }

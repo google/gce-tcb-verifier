@@ -216,18 +216,23 @@ func addEndorsementEntry(ctx context.Context,
 	return entries
 }
 
-func writeEndorsement(ctx context.Context, path string, endorsement *epb.VMLaunchEndorsement, cops ChangeOps) error {
+func writeEndorsement(ctx context.Context, paths []string, endorsement *epb.VMLaunchEndorsement, cops ChangeOps) error {
 	endorsementBytes, err := proto.Marshal(endorsement)
 	if err != nil {
 		return fmt.Errorf("failed to marshal endorsement binary proto: %w", err)
 	}
-	if err := cops.WriteOrCreateFiles(ctx,
-		&File{Path: path, Contents: endorsementBytes}); err != nil {
+	var files []*File
+	for _, path := range paths {
+		files = append(files, &File{Path: path, Contents: endorsementBytes})
+	}
+	if err := cops.WriteOrCreateFiles(ctx, files...); err != nil {
 		return err
 	}
 	// The endorsement is a binarypb, but files are default text. We have to change it to binary.
-	if err := cops.SetBinaryWritable(ctx, path); err != nil {
-		return fmt.Errorf("could not set %q type to binary: %w", path, err)
+	for _, path := range paths {
+		if err := cops.SetBinaryWritable(ctx, path); err != nil {
+			return fmt.Errorf("could not set %q type to binary: %w", path, err)
+		}
 	}
 	return nil
 }
@@ -246,7 +251,7 @@ func addEndorsement(ctx context.Context,
 		return "", err
 	}
 	path := releasePath(ctx, basename)
-	if err := writeEndorsement(ctx, path, endorsement, cops); err != nil {
+	if err := writeEndorsement(ctx, []string{path}, endorsement, cops); err != nil {
 		return "", err
 	}
 	digest := sha512.Sum384(ec.Image)
@@ -266,13 +271,6 @@ func snapshotEndorsement(ctx context.Context, cops ChangeOps, endorsement *epb.V
 	if err != nil {
 		return err
 	}
-	fwPath := ec.VCS.ReleasePath(ctx, path.Join(ec.SnapshotDir, ec.ImageName))
-	svsmPath := ec.VCS.ReleasePath(ctx, path.Join(ec.SnapshotDir, "svsm.igvm"))
-	sigPath := fmt.Sprintf("%s.signed", fwPath)
-	evtsPath := fmt.Sprintf("%s.evts.pb", fwPath)
-	if err := writeEndorsement(ctx, sigPath, endorsement, cops); err != nil {
-		return err
-	}
 	var random io.Reader
 	k, err := keys.FromContext(ctx)
 	if err != nil {
@@ -284,25 +282,32 @@ func snapshotEndorsement(ctx context.Context, cops ChangeOps, endorsement *epb.V
 	if err != nil {
 		return err
 	}
+
+	fwPath := ec.VCS.ReleasePath(ctx, path.Join(ec.SnapshotDir, ec.ImageName))
+	fwSigPath := fmt.Sprintf("%s.signed", fwPath)
+	fwEvtsPath := fmt.Sprintf("%s.evts.pb", fwPath)
+	svsmPath := ec.VCS.ReleasePath(ctx, path.Join(ec.SnapshotDir, "svsm.igvm"))
+	svsmSigPath := fmt.Sprintf("%s.signed", svsmPath)
+	svsmEvtsPath := fmt.Sprintf("%s.evts.pb", svsmPath)
+	endorsementPaths := []string{fwSigPath}
 	files := []*File{
 		{Path: fwPath, Contents: ec.Image},
-		{Path: evtsPath, Contents: events},
+		{Path: fwEvtsPath, Contents: events},
 	}
 	if len(ec.SvsmImage) != 0 {
-		files = append(files, &File{Path: svsmPath, Contents: ec.SvsmImage})
+		endorsementPaths = append(endorsementPaths, svsmSigPath)
+		files = append(files, &File{Path: svsmPath, Contents: ec.SvsmImage},
+			&File{Path: svsmEvtsPath, Contents: events})
+	}
+	if err := writeEndorsement(ctx, endorsementPaths, endorsement, cops); err != nil {
+		return err
 	}
 	if err := cops.WriteOrCreateFiles(ctx, files...); err != nil {
 		return err
 	}
-	if err := cops.SetBinaryWritable(ctx, fwPath); err != nil {
-		return fmt.Errorf("could not set %q type to binary: %w", fwPath, err)
-	}
-	if err := cops.SetBinaryWritable(ctx, evtsPath); err != nil {
-		return fmt.Errorf("could not set %q type to binary: %w", evtsPath, err)
-	}
-	if len(ec.SvsmImage) != 0 {
-		if err := cops.SetBinaryWritable(ctx, svsmPath); err != nil {
-			return fmt.Errorf("could not set %q type to binary: %w", svsmPath, err)
+	for _, f := range files {
+		if err := cops.SetBinaryWritable(ctx, f.Path); err != nil {
+			return fmt.Errorf("could not set %q type to binary: %w", f.Path, err)
 		}
 	}
 	return nil
