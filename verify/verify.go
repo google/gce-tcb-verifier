@@ -192,7 +192,14 @@ func SNP(golden *epb.VMGoldenMeasurement, opts *SNPOptions) error {
 		if m == nil {
 			return ErrNoSevSnpMeasurements
 		}
-		measure, ok := m[opts.ExpectedLaunchVMSAs]
+		var measure []byte
+		var ok bool
+		if opts.ExpectedLaunchVMSAs == 1 {
+			measure = snp.SvsmMeasurement
+			ok = len(measure) > 0
+		} else {
+			measure, ok = m[opts.ExpectedLaunchVMSAs]
+		}
 		if !ok {
 			return fmt.Errorf("no golden measurement for %d launch VMSAs", opts.ExpectedLaunchVMSAs)
 		}
@@ -203,10 +210,14 @@ func SNP(golden *epb.VMGoldenMeasurement, opts *SNPOptions) error {
 	} else if opts.Measurement != nil {
 		// Check the measurement against any of the launch VMSA measurements.
 		var found bool
-		for _, measure := range snp.Measurements {
-			if bytes.Equal(measure, opts.Measurement) {
-				found = true
-				break
+		if bytes.Equal(opts.Measurement, snp.SvsmMeasurement) {
+			found = true
+		} else {
+			for _, measure := range snp.Measurements {
+				if bytes.Equal(measure, opts.Measurement) {
+					found = true
+					break
+				}
 			}
 		}
 		if !found {
