@@ -120,15 +120,24 @@ func validateSnpFlags(f *sev.SnpEndorsementRequest) error {
 // The SVN for SEV, TDX, and non-CoCo are all the same for now.
 func scrtmMain(path string) (bool, uint32, error) {
 	// Read the bundled SVN if it exists.
-	versionPath := strings.Replace(path, ".fd", "_scrtm_ver.pb", 1)
-	if versionBytes, err := os.ReadFile(versionPath); err == nil {
-		var version edk2pb.SCRTMVersion
-		if err := proto.Unmarshal(versionBytes, &version); err != nil {
-			return false, 0, err
+	var versionBytes []byte
+	var err error
+	for _, path := range []string{
+		strings.Replace(path, ".fd", "_scrtm_ver.pb", 1),
+		path + ".scrtm.pb"} {
+		versionBytes, err = os.ReadFile(path)
+		if err == nil {
+			break
 		}
-		return true, uint32(version.Version), nil
 	}
-	return false, 0, nil
+	if len(versionBytes) == 0 {
+		return false, 0, nil
+	}
+	var version edk2pb.SCRTMVersion
+	if err := proto.Unmarshal(versionBytes, &version); err != nil {
+		return false, 0, err
+	}
+	return true, uint32(version.Version), nil
 }
 
 // PersistentPreRunE returns an error if the results of the parsed flags constitute an error.

@@ -25,6 +25,7 @@ import (
 
 	"github.com/google/gce-tcb-verifier/keys"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
+	vpb "github.com/google/gce-tcb-verifier/proto/scrtmversion"
 	"github.com/google/gce-tcb-verifier/sev"
 	"github.com/google/gce-tcb-verifier/sign/memca"
 	"github.com/google/gce-tcb-verifier/sign/nonprod"
@@ -216,7 +217,9 @@ func TestChangeEndorsementsSvsm(t *testing.T) {
 		SnapshotDir:        "c",
 		VCS:                vcs,
 		OutDir:             "a/b",
+		SevSnp:             &sev.SnpEndorsementRequest{Svn: 2},
 	}
+	scrtmBytes, _ := proto.Marshal(&vpb.SCRTMVersion{Version: vpb.FirmwareVersion_VERSION_2})
 	endorsement := &epb.VMLaunchEndorsement{SerializedUefiGolden: []byte("nope")}
 	endorseBytes, _ := proto.Marshal(endorsement)
 	evtsBytes, err := makeEvents(ones, endorsement)
@@ -238,9 +241,11 @@ func TestChangeEndorsementsSvsm(t *testing.T) {
 		{path: "c/svsm.igvm", contents: svsmBytes},
 		{path: "c/svsm.igvm.signed", contents: endorseBytes},
 		{path: "c/svsm.igvm.evts.pb", contents: evtsBytes},
+		{path: "c/svsm.igvm.scrtm.pb", contents: scrtmBytes},
 		{path: "c/uefi.fd", contents: imageBytes},
 		{path: "c/uefi.fd.signed", contents: endorseBytes},
 		{path: "c/uefi.fd.evts.pb", contents: evtsBytes},
+		{path: "c/uefi.fd.scrtm.pb", contents: scrtmBytes},
 	}
 	for _, w := range want {
 		// The state change should be that both UEFI and SVSM are written, and their evts and
