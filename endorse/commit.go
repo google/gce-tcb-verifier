@@ -28,6 +28,7 @@ import (
 	"github.com/google/gce-tcb-verifier/keys"
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
 	rpb "github.com/google/gce-tcb-verifier/proto/releases"
+	vpb "github.com/google/gce-tcb-verifier/proto/scrtmversion"
 	"github.com/google/gce-tcb-verifier/timeproto"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -286,18 +287,38 @@ func snapshotEndorsement(ctx context.Context, cops ChangeOps, endorsement *epb.V
 	fwPath := ec.VCS.ReleasePath(ctx, path.Join(ec.SnapshotDir, ec.ImageName))
 	fwSigPath := fmt.Sprintf("%s.signed", fwPath)
 	fwEvtsPath := fmt.Sprintf("%s.evts.pb", fwPath)
-	svsmPath := ec.VCS.ReleasePath(ctx, path.Join(ec.SnapshotDir, "svsm.igvm"))
-	svsmSigPath := fmt.Sprintf("%s.signed", svsmPath)
-	svsmEvtsPath := fmt.Sprintf("%s.evts.pb", svsmPath)
+	fwSCRTMPath := fmt.Sprintf("%s.scrtm.pb", fwPath)
 	endorsementPaths := []string{fwSigPath}
 	files := []*File{
 		{Path: fwPath, Contents: ec.Image},
-		{Path: fwEvtsPath, Contents: events},
+		{Path: fwEvtsPath, Contents: events}}
+
+	// Snapshot the S_CRTM_VERSION number if it's provided as well.
+	var svn uint32
+	var scrtm []byte
+	if ec.SevSnp != nil {
+		svn = ec.SevSnp.Svn
+	} else if ec.Tdx != nil {
+		svn = ec.Tdx.Svn
 	}
+	if svn != 0 {
+		scrtm, _ = proto.Marshal(&vpb.SCRTMVersion{Version: vpb.FirmwareVersion_Version(svn)})
+	}
+	if len(scrtm) != 0 {
+		files = append(files, &File{Path: fwSCRTMPath, Contents: scrtm})
+	}
+
 	if len(ec.SvsmImage) != 0 {
+		svsmPath := ec.VCS.ReleasePath(ctx, path.Join(ec.SnapshotDir, "svsm.igvm"))
+		svsmSigPath := fmt.Sprintf("%s.signed", svsmPath)
+		svsmEvtsPath := fmt.Sprintf("%s.evts.pb", svsmPath)
+		svsmSCRTMPath := fmt.Sprintf("%s.scrtm.pb", svsmPath)
 		endorsementPaths = append(endorsementPaths, svsmSigPath)
 		files = append(files, &File{Path: svsmPath, Contents: ec.SvsmImage},
 			&File{Path: svsmEvtsPath, Contents: events})
+		if len(scrtm) != 0 {
+			files = append(files, &File{Path: svsmSCRTMPath, Contents: scrtm})
+		}
 	}
 	if err := writeEndorsement(ctx, endorsementPaths, endorsement, cops); err != nil {
 		return err
