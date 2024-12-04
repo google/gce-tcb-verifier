@@ -136,6 +136,9 @@ func validateTDXMetadataSections(firmwareLen uint32, rawMetadata *abi.TDXMetadat
 			return fmt.Errorf("unsupported metadata section type: %v", section.SectionType)
 		}
 	}
+	// The TDHOB is only required if there is no PermMem section. The PermMem section is only included
+	// if this is a build of the firmware that is prepared to work with TD shim. This "prepared to work"
+	// bit is determined by the Google Compute Engine platform.
 	if !foundTDHOB && (!foundPermMem || !allowTDShim) {
 		return fmt.Errorf("TDX metadata doesn't contain section for Trust Domain Handover Block (TD HOB)")
 	}
@@ -163,14 +166,19 @@ type tdxFwParser struct {
 }
 
 func (p *tdxFwParser) validateMetadataSectionGpr(sectionType uint32, gpr GuestPhysicalRegion) error {
-	for _, region := range append(p.Regions, p.PermRegions...) {
-		if region.GPR.intersect(gpr).Length != 0 {
-			return fmt.Errorf("TDX metadata section overlapping with other section. "+
-				"Type %v, Start, size [%v, %v] collides with Start, size [%v, %v]",
-				sectionType, gpr.Start, gpr.Length, region.GPR.Start, region.GPR.Length)
+	checkRegions := func(regions []*MaterialGuestPhysicalRegion) error {
+		for _, region := range regions {
+			if region.GPR.intersect(gpr).Length != 0 {
+				return fmt.Errorf("TDX metadata section overlapping with other section. "+
+					"Type %v, Start, size [%v, %v] collides with Start, size [%v, %v]",
+					sectionType, gpr.Start, gpr.Length, region.GPR.Start, region.GPR.Length)
+			}
 		}
 	}
-	return nil
+	if err := checkRegions(p.Regions); err != nil {
+		return err
+	}
+	return checkRegions(p.PermRegions)
 }
 
 func (p *tdxFwParser) parse(firmware []byte, guestRAMbanks []GuestPhysicalRegion) ([]*MaterialGuestPhysicalRegion, error) {
