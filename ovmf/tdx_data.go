@@ -123,12 +123,12 @@ func validateTDXMetadataSections(firmwareLen uint32, rawMetadata *abi.TDXMetadat
 		case abi.TDXMetadataSectionTypeTDINFO: // do nothing
 		case abi.TDXMetadataSectionTypePayloadParam:
 			if section.DataSize != 0 {
-				return fmt.Errorf("PayloadParam section type had data size 0x%x. Want 0.",
+				return fmt.Errorf("section type PayloadParam had data size 0x%x. Want 0",
 					section.DataSize)
 			}
 		case abi.TDXMetadataSectionTypePermMem:
 			if section.DataSize != 0 {
-				return fmt.Errorf("PermMem section type had data size 0x%x. Want 0.",
+				return fmt.Errorf("section type PermMem had data size 0x%x. Want 0",
 					section.DataSize)
 			}
 			foundPermMem = true
@@ -174,6 +174,7 @@ func (p *tdxFwParser) validateMetadataSectionGpr(sectionType uint32, gpr GuestPh
 					sectionType, gpr.Start, gpr.Length, region.GPR.Start, region.GPR.Length)
 			}
 		}
+		return nil
 	}
 	if err := checkRegions(p.Regions); err != nil {
 		return err
