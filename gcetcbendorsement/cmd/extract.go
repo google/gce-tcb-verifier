@@ -38,6 +38,7 @@ type extractCommand struct {
 	eventlogpath string
 	efivarloc    string
 	forceFetch   bool
+	vmpl         uint
 }
 type extractKeyType struct{}
 
@@ -63,6 +64,23 @@ func (c *extractCommand) persistentPreRunE(cmd *cobra.Command, args []string) er
 	return nil
 }
 
+type levelQuoteProvider struct {
+	p    extract.LeveledQuoteProvider
+	vmpl uint
+}
+
+func (p *levelQuoteProvider) IsSupported() bool {
+	return p.p.IsSupported()
+}
+
+func (p *levelQuoteProvider) GetRawQuote(reportData [64]byte) ([]uint8, error) {
+	return p.p.GetRawQuoteAtLevel(reportData, p.vmpl)
+}
+
+func (c *extractCommand) levelQuoteProvider(p extract.LeveledQuoteProvider) extract.QuoteProvider {
+	return &levelQuoteProvider{p: p, vmpl: c.vmpl}
+}
+
 func (c *extractCommand) runE(cmd *cobra.Command, args []string) error {
 	backend, err := backendFrom(cmd.Context())
 	if err != nil {
@@ -78,7 +96,7 @@ func (c *extractCommand) runE(cmd *cobra.Command, args []string) error {
 	}
 	defer cleanup()
 	endorsement, err := extract.Endorsement(&extract.Options{
-		Provider:             backend.Provider,
+		Provider:             c.levelQuoteProvider(backend.Provider),
 		Getter:               backend.Getter,
 		FirmwareManufacturer: c.manufacturer,
 		EventLogLocation:     c.eventlogpath,
@@ -114,6 +132,7 @@ If PATH is provided it must be to an attestation in one of the following formats
 	cmd.Flags().StringVar(&e.manufacturer, "firmware_manufacturer", extract.GCEFirmwareManufacturer, "The firmware manufacturer string to search for in SP800155 events.")
 	cmd.Flags().StringVar(&e.efivarloc, "efivarfs", "/sys/firmware/efi/efivars", "The efivarfs mount location.")
 	cmd.Flags().BoolVar(&e.forceFetch, "force_fetch", false, "Force fetch the endorsement from the network.")
+	cmd.Flags().UintVar(&e.vmpl, "default_vmpl", 0, "The VMPL to use for SEV-SNP reports.")
 	cmd.SetContext(ctx)
 	return cmd
 }

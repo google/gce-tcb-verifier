@@ -51,7 +51,7 @@ import (
 
 var (
 	mu                  sync.Once
-	qp                  extract.QuoteProvider
+	qp                  extract.LeveledQuoteProvider
 	getter              trust.HTTPSGetter
 	rootlessGetter      trust.HTTPSGetter
 	now                 time.Time
@@ -131,6 +131,18 @@ func (t *testIO) ReadFile(path string) ([]byte, error) {
 	return result.readBytes, result.readErr
 }
 
+type tcquoteLevel struct {
+	qp extract.QuoteProvider
+}
+
+func (qp *tcquoteLevel) IsSupported() bool {
+	return qp.IsSupported()
+}
+
+func (qp *tcquoteLevel) GetRawQuoteAtLevel(reportData [64]byte, _ uint) ([]byte, error) {
+	return qp.qp.GetRawQuote(reportData)
+}
+
 func initQuote(t testing.TB) func() {
 	return func() {
 		now = time.Now()
@@ -161,7 +173,7 @@ func initQuote(t testing.TB) func() {
 		binary.LittleEndian.PutUint32(zeroRaw[0x34:0x38], 1)
 		// Write the expected measurement.
 		copy(zeroRaw[measurementOffset:measurementOffset+abi.MeasurementSize], wantSnpMeas)
-		qp, _, _, _ = testclient.GetSevQuoteProvider([]test.TestCase{
+		qp0, _, _, _ := testclient.GetSevQuoteProvider([]test.TestCase{
 			{
 				Name:   "zeros",
 				Input:  zeros,
@@ -172,7 +184,8 @@ func initQuote(t testing.TB) func() {
 			Signer:  s,
 			Now:     now,
 		}, t)
-		goodSnpQuote, err = qp.GetRawQuote(zeros)
+		qp = &tcquoteLevel{qp: qp0}
+		goodSnpQuote, err = qp0.GetRawQuote(zeros)
 		if err != nil {
 			t.Fatalf("qp.GetRawQuote() failed: %v", err)
 		}
@@ -196,7 +209,7 @@ func TestExtract(t *testing.T) {
 	tcs := []struct {
 		name    string
 		input   []string
-		qp      extract.QuoteProvider
+		qp      extract.LeveledQuoteProvider
 		io      *testIO
 		outpath string
 		wantErr string

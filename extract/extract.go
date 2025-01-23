@@ -71,6 +71,15 @@ type QuoteProvider interface {
 	GetRawQuote(reportData [64]byte) ([]uint8, error)
 }
 
+// LeveledQuoteProvider provides a raw quote within a trusted execution environment at a given
+// privilege level.
+type LeveledQuoteProvider interface {
+	// IsSupported returns whether the kernel supports this implementation.
+	IsSupported() bool
+	// GetRawQuoteAtLevel returns a raw report with a given privilege level.
+	GetRawQuoteAtLevel(reportData [64]byte, vmpl uint) ([]uint8, error)
+}
+
 // Options provides configuration for RIM extraction logic.
 type Options struct {
 	Provider             QuoteProvider
