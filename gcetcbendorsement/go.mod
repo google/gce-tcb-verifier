@@ -11,7 +11,7 @@ require (
 	github.com/google/logger v1.1.1
 	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.8.0
-	golang.org/x/term v0.18.0
+	golang.org/x/term v0.27.0
 	google.golang.org/protobuf v1.34.2
 )
 
@@ -24,8 +24,8 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.21.0 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/exp v0.0.0-20240409090435-93d18d7e34b8 // indirect
-	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 )
