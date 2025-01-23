@@ -136,7 +136,7 @@ type tcquoteLevel struct {
 }
 
 func (qp *tcquoteLevel) IsSupported() bool {
-	return qp.IsSupported()
+	return qp.qp.IsSupported()
 }
 
 func (qp *tcquoteLevel) GetRawQuoteAtLevel(reportData [64]byte, _ uint) ([]byte, error) {
