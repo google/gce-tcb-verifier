@@ -41,7 +41,7 @@ var (
 
 // Backend provides implementations for quote creation, internet access, and the current time.
 type Backend struct {
-	Provider              extract.QuoteProvider
+	Provider              extract.LeveledQuoteProvider
 	Getter                verify.HTTPSGetter
 	MakeEfiVariableReader func(mountpath string) exel.VariableReader
 	Now                   time.Time
@@ -101,10 +101,10 @@ func (b *bearerGetter) Get(url string) ([]byte, error) {
 type tdxQuoteProvider struct{ p tdclient.QuoteProvider }
 
 func (qp *tdxQuoteProvider) IsSupported() bool { return qp.p.IsSupported() == nil }
-func (qp *tdxQuoteProvider) GetRawQuote(reportData [64]byte) ([]uint8, error) {
+func (qp *tdxQuoteProvider) GetRawQuoteAtLevel(reportData [64]byte, _ uint) ([]uint8, error) {
 	return qp.p.GetRawQuote(reportData)
 }
-func createTdxQuoteProvider() extract.QuoteProvider {
+func createTdxQuoteProvider() extract.LeveledQuoteProvider {
 	tdp, err := tdclient.GetQuoteProvider()
 	if err != nil {
 		return nil
@@ -112,16 +112,16 @@ func createTdxQuoteProvider() extract.QuoteProvider {
 	return &tdxQuoteProvider{p: tdp}
 }
 
-func createSnpQuoteProvider() extract.QuoteProvider {
-	sp, err := client.GetQuoteProvider()
+func createSnpQuoteProvider() extract.LeveledQuoteProvider {
+	sp, err := client.GetLeveledQuoteProvider()
 	if err != nil {
 		return nil
 	}
 	return sp
 }
 
-func getProvider() (p extract.QuoteProvider) {
-	creators := []func() extract.QuoteProvider{createSnpQuoteProvider, createTdxQuoteProvider}
+func getProvider() (p extract.LeveledQuoteProvider) {
+	creators := []func() extract.LeveledQuoteProvider{createSnpQuoteProvider, createTdxQuoteProvider}
 	for _, c := range creators {
 		if p := c(); p != nil && p.IsSupported() {
 			return p
