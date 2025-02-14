@@ -63,18 +63,11 @@ type VersionControl interface {
 	GetChangeOps(ctx context.Context) (ChangeOps, error)
 	// RetriableError returns true if TryCommit's provided error is retriable.
 	RetriableError(err error) bool
-	// Result returns a successful commit's representation given a successful TryCommit's result and
+	// Result stores a successful commit's representation given a successful TryCommit's result and
 	// the path to the created endorsement.
-	Result(commit any, endorsementPath string) any
+	Result(commit any, endorsementPath string)
 	// ReleasePath translates a path to its expected full path for WriteOrCreateFiles/ReadFile.
 	ReleasePath(ctx context.Context, certPath string) string
-}
-
-// CommitFinalizer performs any final actions with the commit result of the endorsement
-// signatures.
-type CommitFinalizer interface {
-	// Finalize performs any final actions with the VersionControl Result value.
-	Finalize(ctx context.Context, result any) error
 }
 
 // File represents a file's path and contents.
@@ -393,16 +386,16 @@ func changeEndorsements(ctx context.Context, cops ChangeOps, endorsement *epb.VM
 
 // Creates commit for extending the endorsement manifest and writing out the serialized endorsement
 // and attempts to submit. Submit may fail, thus "try".
-func tryChange(ctx context.Context, change func(context.Context, ChangeOps) (string, error)) (any, error) {
+func tryChange(ctx context.Context, change func(context.Context, ChangeOps) (string, error)) error {
 	ec, err := FromContext(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	var cops ChangeOps
 	if !ec.DryRun {
 		cops, err = ec.VCS.GetChangeOps(ctx)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 	certPath, err := change(ctx, cops)
@@ -410,7 +403,7 @@ func tryChange(ctx context.Context, change func(context.Context, ChangeOps) (str
 		if cops != nil {
 			cops.Destroy()
 		}
-		return nil, fmt.Errorf("failed to modify manifest textproto: %w", err)
+		return fmt.Errorf("failed to modify manifest textproto: %w", err)
 	}
 
 	var commit any
@@ -419,54 +412,50 @@ func tryChange(ctx context.Context, change func(context.Context, ChangeOps) (str
 		commit, err = cops.TryCommit(ctx)
 		if err != nil {
 			cops.Destroy()
-			return nil, fmt.Errorf("failed to submit change: %w", err)
+			return fmt.Errorf("failed to submit change: %w", err)
 		}
 	}
 	output.Infof(ctx, "Submitted new endorsement as %v", commit)
-	return ec.VCS.Result(commit, certPath), nil
+	ec.VCS.Result(commit, certPath)
+	return nil
 }
 
 // RetrySubmit runs f to attempt a submit transaction without merge conflict or service
 // irregularity. Each attempt should use a fresh workspace to work from the most up-to-date source
 // to both avoid a conflict and drop entries in the manifest due to a write-write data race.
-func RetrySubmit(ctx context.Context, f func(context.Context, ChangeOps) (string, error)) (any, error) {
+func RetrySubmit(ctx context.Context, f func(context.Context, ChangeOps) (string, error)) error {
 	ec, err := FromContext(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	var tries int
 	for {
-		resp, err := tryChange(ctx, f)
-		if err != nil {
-			output.Warningf(ctx, "Commit failed: %v", err)
-			if ec.VCS.RetriableError(err) {
-				tries++
-				remain := ec.CommitRetries - tries
-				// 1 try is 0 retries, so < 0 means there are no retries left.
-				if remain < 0 {
-					break
-				}
-				output.Debugf(ctx, "Warning: Retrying (%d retries left) submission", remain)
-				continue
-			}
-			// Not retriable, so we're done.
-			return nil, err
+		err := tryChange(ctx, f)
+		if err == nil { // No error, we're done.
+			return nil
 		}
-		// No error, we're done.
-		return resp, nil
+		output.Warningf(ctx, "Commit failed: %v", err)
+		if !ec.VCS.RetriableError(err) {
+			return err
+		}
+		tries++
+		remain := ec.CommitRetries - tries
+		// 1 try is 0 retries, so < 0 means there are no retries left.
+		if remain < 0 {
+			break
+		}
+		output.Debugf(ctx, "Warning: Retrying (%d retries left) submission", remain)
 	}
-	return nil, ErrNoRetries
+	return ErrNoRetries
 }
 
-func commitEndorsement(ctx context.Context, endorsement *epb.VMLaunchEndorsement) (any, error) {
+func commitEndorsement(ctx context.Context, endorsement *epb.VMLaunchEndorsement) error {
 	output.Infof(ctx, "Starting endorsement submission.")
-	resp, err := RetrySubmit(ctx, func(ctx context.Context, cops ChangeOps) (string, error) {
+	if err := RetrySubmit(ctx, func(ctx context.Context, cops ChangeOps) (string, error) {
 		return changeEndorsements(ctx, cops, endorsement)
-	})
-	if err != nil {
-		return nil, err
+	}); err != nil {
+		return err
 	}
-
 	output.Infof(ctx, "Endorsement submitted.")
-	return resp, nil
+	return nil
 }

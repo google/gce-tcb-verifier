@@ -83,9 +83,8 @@ func (*T) GetChangeOps(context.Context) (endorse.ChangeOps, error) {
 // RetriableError returns true if TryCommit's provided error is retriable.
 func (*T) RetriableError(error) bool { return false }
 
-// Result returns a successful commit's representation given a successful TryCommit's result and
-// the path to the created endorsement.
-func (*T) Result(any, string) any { return nil }
+// Result is a no-op.
+func (*T) Result(any, string) {}
 
 // ReleasePath translates a path to its expected full path for WriteOrCreateFiles/ReadFile.
 func (t *T) ReleasePath(_ context.Context, certPath string) string {

@@ -68,7 +68,7 @@ func (v *fakeVcs) GetChangeOps(context.Context) (ChangeOps, error) {
 }
 
 func (*fakeVcs) RetriableError(error) bool                         { return false }
-func (*fakeVcs) Result(any, string) any                            { return nil }
+func (*fakeVcs) Result(any, string)                                {}
 func (*fakeVcs) ReleasePath(_ context.Context, path string) string { return path }
 
 type fakeChangeOps struct {
