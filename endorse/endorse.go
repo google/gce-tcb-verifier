@@ -71,10 +71,6 @@ type Context struct {
 	// to the VCS with related paths. This is in addition to the manifest method to allow for older
 	// releases to still get signatures in a way the VMM can parse.
 	SnapshotDir string
-	// SnapshotToHead is true if the snapshot should be written to HEAD instead of the release branch.
-	// This is an interim solution until the firmware is entirely in its own separately released
-	// package.
-	SnapshotToHead bool
 	// ImageName is the path under SnapshotDir to write the firmware and its endorsement.
 	ImageName string
 	// SvsmImage is the full contents of the SVSM IGVM, if supplied.
