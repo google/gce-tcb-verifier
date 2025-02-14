@@ -56,14 +56,13 @@ type Context struct {
 	// ReleaseBranch is the name of the piper branch on which the image was build.
 	ReleaseBranch string
 	// Timestamp is what time will be reported in the golden measurement document.
-	Timestamp       time.Time
-	VCS             VersionControl
-	CommitFinalizer CommitFinalizer
+	Timestamp time.Time
+	VCS       VersionControl
 	// Fields used by VCS when committing an endorsement.
 	CommitRetries int
 	// OutDir is the VCS-root-relative location in which to write the endorsement files.
 	OutDir string
-	// DryRun true means that no endorsements will get written to version control or finalized.
+	// DryRun true means that no endorsements will get written to version control.
 	DryRun          bool
 	MeasurementOnly bool
 	// SnapshotDir is the VCS-root-relative location in which to write the snapshot files.
@@ -202,7 +201,7 @@ func outputTdxMeasurement(_ *Context, tdx *epb.VMTdx) {
 
 // VirtualFirmware calculates the golden measurement of the given OVMF and (if
 // supplied) SVSM image, signs a document with the measurement and associated
-// metadata, submits it, and performs finalization.
+// metadata, and submits it.
 func VirtualFirmware(ctx context.Context) error {
 	ec, err := FromContext(ctx)
 	if err != nil {
@@ -227,13 +226,7 @@ func VirtualFirmware(ctx context.Context) error {
 	}
 
 	if ec.VCS != nil {
-		resp, err := commitEndorsement(ctx, endorsement)
-		if err != nil {
-			return err
-		}
-		if ec.CommitFinalizer != nil && !ec.DryRun {
-			return ec.CommitFinalizer.Finalize(ctx, resp)
-		}
+		return commitEndorsement(ctx, endorsement)
 	}
 	return nil
 }
