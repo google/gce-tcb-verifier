@@ -58,6 +58,12 @@ type Context struct {
 	// Timestamp is what time will be reported in the golden measurement document.
 	Timestamp time.Time
 	VCS       VersionControl
+	// VCSs is an array of VCSs to use to commit the signatures. The is seeded for
+	// transitioning between systems. This array feeds values to `VCS` for multiple passes
+	// through the commit phase after signing. This array is therefore ONLY meant to be accessed
+	// in VirtualFirmware. This field WILL be removed after a successful internal transition
+	// to the snapshot-to-release-branch-only model.
+	VCSs []VersionControl
 	// Fields used by VCS when committing an endorsement.
 	CommitRetries int
 	// OutDir is the VCS-root-relative location in which to write the endorsement files.
@@ -225,8 +231,14 @@ func VirtualFirmware(ctx context.Context) error {
 		return fmt.Errorf("could not sign endorsement: %v", err)
 	}
 
-	if ec.VCS != nil {
-		return commitEndorsement(ctx, endorsement)
+	if ec.VCS != nil && len(ec.VCSs) == 0 {
+		ec.VCSs = append(ec.VCSs, ec.VCS)
+	}
+	for _, vcs := range ec.VCSs {
+		ec.VCS = vcs
+		if err := commitEndorsement(ctx, endorsement); err != nil {
+			return err
+		}
 	}
 	return nil
 }
