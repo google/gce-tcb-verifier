@@ -6,10 +6,9 @@ require (
 	cloud.google.com/go/iam v1.1.6
 	cloud.google.com/go/kms v1.15.7
 	github.com/cyphar/filepath-securejoin v0.2.5
-	github.com/golang/protobuf v1.5.4
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-configfs-tsm v0.2.2
-	github.com/google/go-sev-guest v0.11.2-0.20241017023127-f94d851ddd48
+	github.com/google/go-sev-guest v0.13.0
 	github.com/google/go-tdx-guest v0.3.1
 	github.com/google/go-tpm-tools v0.4.4
 	github.com/google/logger v1.1.1
@@ -25,7 +24,6 @@ require (
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/net v0.23.0 // indirect
