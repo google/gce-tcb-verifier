@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/google/gce-tcb-verifier v0.2.3-0.20240907002716-116e9ad95165
 	github.com/google/go-cmp v0.6.0
-	github.com/google/go-sev-guest v0.13.0
+	github.com/google/go-sev-guest v0.14.1
 	github.com/google/go-tdx-guest v0.3.2-0.20240902060211-1f7f7b9b42b9
 	github.com/google/go-tpm-tools v0.4.4
 	github.com/google/logger v1.1.1
