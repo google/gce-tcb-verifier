@@ -2,3 +2,5 @@
 \#.*\#
 .coverage
 /bin/
+cmd/nonprod/nonprod
+gcetcbendorsement/cli/cli
