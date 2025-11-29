@@ -86,6 +86,18 @@ const (
 	// TDXMetadataSectionTypeTempMem is a metadata section descriptor for a memory region that is used
 	// for temporary memory.
 	TDXMetadataSectionTypeTempMem = 3
+	// TDXMetadataSectionTypePermMem is a metadata section descriptor for a memory region that is used
+	// for permanent (ACPI NVS) memory.
+	TDXMetadataSectionTypePermMem = 4
+	// TDXMetadataSectionTypePayload is a metadata section descriptor for a memory region that is used
+	// for providing extra data to further down the boot, such as a kernel or container.
+	TDXMetadataSectionTypePayload = 5
+	// TDXMetadataSectionTypePayloadParam is a metadata section descriptor for a memory region that is
+	// used for providing unmeasured (into MRTD) configuration data for the payload.
+	TDXMetadataSectionTypePayloadParam = 6
+	// TDXMetadataSectionTypeTDINFO is a metadata section descriptor for a GUID table descriptor about
+	// the virtual firmware.
+	TDXMetadataSectionTypeTDINFO = 7
 	// TDXMetadataVersion is the versioning value for the metadata embedded in the firmware about the
 	// TDVF.
 	TDXMetadataVersion = 1
