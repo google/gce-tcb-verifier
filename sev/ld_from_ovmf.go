@@ -106,6 +106,8 @@ func measureZeroContentUefiPages(data *ovmf.SevData, measurement *SnpMeasurement
 			sectionType = PageTypeCpuid
 		case oabi.SevSvsmCaaSection:
 			sectionType = PageTypeZero
+		case oabi.SevSnpKernelHashesSection:
+			sectionType = PageTypeZero
 		default:
 			return fmt.Errorf("unknown OVMF page section type: %v", section.Kind)
 		}
