@@ -79,6 +79,8 @@ func SevSectionTypeToString(kind uint32) string {
 		return "OVMF_SECTION_TYPE_SNP_SEC_MEM"
 	case abi.SevSvsmCaaSection:
 		return "OVMF_SECTION_TYPE_SVSM_CAA"
+	case abi.SevSnpKernelHashesSection:
+		return "OVMF_SECTION_TYPE_SNP_KERNEL_HASHES"
 	default:
 		return fmt.Sprintf("[unknown SNP metadata section type: 0x%x]", kind)
 	}
