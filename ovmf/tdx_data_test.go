@@ -28,6 +28,7 @@ func TestValidateTDXMetadataSections(t *testing.T) {
 		name        string
 		firmwareLen uint32
 		rawMetadata *abi.TDXMetadata
+		allowTDShim bool
 		wantErr     string
 	}{
 		{
@@ -280,7 +281,7 @@ func TestValidateTDXMetadataSections(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := validateTDXMetadataSections(tc.firmwareLen, tc.rawMetadata); !match.Error(err, tc.wantErr) {
+			if err := validateTDXMetadataSections(tc.firmwareLen, tc.rawMetadata, tc.allowTDShim); !match.Error(err, tc.wantErr) {
 				t.Errorf("validateTDXMetadataSections(%v, %v) returned error: %v, want error: %v", tc.firmwareLen, tc.rawMetadata, err, tc.wantErr)
 			}
 		})
@@ -289,10 +290,11 @@ func TestValidateTDXMetadataSections(t *testing.T) {
 
 func TestExtractTDXMetadata(t *testing.T) {
 	tcs := []struct {
-		name     string
-		firmware []byte
-		want     *abi.TDXMetadata
-		wantErr  string
+		name        string
+		firmware    []byte
+		allowTDShim bool
+		want        *abi.TDXMetadata
+		wantErr     string
 	}{
 		{
 			name:    "empty",
@@ -419,15 +421,15 @@ func TestExtractTDXMetadata(t *testing.T) {
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := extractTDXMetadata(tc.firmware)
+			got, err := extractTDXMetadata(tc.firmware, tc.allowTDShim)
 			if !match.Error(err, tc.wantErr) {
-				t.Fatalf("extractTDXMetadata(%v) returned error %v, want %v", tc.firmware, err, tc.wantErr)
+				t.Fatalf("extractTDXMetadata(%v, %v) returned error %v, want %v", tc.firmware, tc.allowTDShim, err, tc.wantErr)
 			}
 			if tc.wantErr != "" {
 				return
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("extractTDXMetadata(%v) returned diff (-want +got):\n%s", tc.firmware, diff)
+				t.Errorf("extractTDXMetadata(%v, %v) returned diff (-want +got):\n%s", tc.firmware, tc.allowTDShim, diff)
 			}
 		})
 	}
@@ -469,6 +471,24 @@ func TestValidateMetadataSectionGpr(t *testing.T) {
 			name: "intersects",
 			p: &tdxFwParser{
 				Regions: []*MaterialGuestPhysicalRegion{
+					{
+						GPR: GuestPhysicalRegion{
+							Start:  0,
+							Length: 700,
+						},
+					},
+				},
+			},
+			gpr: GuestPhysicalRegion{
+				Start:  600,
+				Length: 400,
+			},
+			wantErr: "TDX metadata section overlapping with other section. Type 789, Start, size [600, 400] collides with Start, size [0, 700]",
+		},
+		{
+			name: "intersects perm",
+			p: &tdxFwParser{
+				PermRegions: []*MaterialGuestPhysicalRegion{
 					{
 						GPR: GuestPhysicalRegion{
 							Start:  0,

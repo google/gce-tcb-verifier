@@ -34,7 +34,7 @@ const (
 		abi.EFIResourceAttributeTested
 )
 
-func extractTDXMetadata(firmware []byte) (*abi.TDXMetadata, error) {
+func extractTDXMetadata(firmware []byte, allowTDShim bool) (*abi.TDXMetadata, error) {
 	guidBlockMap, err := GetFwGUIDToBlockMap(firmware)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GUID block map from OVMF: %v", err)
@@ -67,13 +67,13 @@ func extractTDXMetadata(firmware []byte) (*abi.TDXMetadata, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := validateTDXMetadataSections(uint32(len(firmware)), rawMetadata); err != nil {
+	if err := validateTDXMetadataSections(uint32(len(firmware)), rawMetadata, allowTDShim); err != nil {
 		return nil, err
 	}
 	return rawMetadata, nil
 }
 
-func validateTDXMetadataSections(firmwareLen uint32, rawMetadata *abi.TDXMetadata) error {
+func validateTDXMetadataSections(firmwareLen uint32, rawMetadata *abi.TDXMetadata, allowTDShim bool) error {
 	if rawMetadata.Header.Signature != abi.TDXMetadataDescriptorMagic {
 		return fmt.Errorf("TDX metadata descriptor signature mismatch. Got 0x%x want 0x%x",
 			rawMetadata.Header.Signature, abi.TDXMetadataDescriptorMagic)
@@ -87,7 +87,7 @@ func validateTDXMetadataSections(firmwareLen uint32, rawMetadata *abi.TDXMetadat
 		return fmt.Errorf("TDX metadata descriptor length mismatch. Got 0x%x want 0x%x",
 			rawMetadata.Header.Length, expectedLength)
 	}
-	var foundTDHOB, foundBFV bool
+	var foundTDHOB, foundBFV, foundPermMem bool
 	var fvSize uint32
 	cfvCheck := func(section *abi.TDXMetadataSection) error {
 		if (section.DataOffset > firmwareLen) || (section.DataSize == 0) ||
@@ -119,17 +119,33 @@ func validateTDXMetadataSections(firmwareLen uint32, rawMetadata *abi.TDXMetadat
 			}
 			foundTDHOB = true
 		case abi.TDXMetadataSectionTypeTempMem: // do nothing
+		case abi.TDXMetadataSectionTypePayload: // do nothing
+		case abi.TDXMetadataSectionTypeTDINFO: // do nothing
+		case abi.TDXMetadataSectionTypePayloadParam:
+			if section.DataSize != 0 {
+				return fmt.Errorf("section type PayloadParam had data size 0x%x. Want 0",
+					section.DataSize)
+			}
+		case abi.TDXMetadataSectionTypePermMem:
+			if section.DataSize != 0 {
+				return fmt.Errorf("section type PermMem had data size 0x%x. Want 0",
+					section.DataSize)
+			}
+			foundPermMem = true
 		default:
 			return fmt.Errorf("unsupported metadata section type: %v", section.SectionType)
 		}
 	}
-	if !foundTDHOB {
+	// The TDHOB is only required if there is no PermMem section. The PermMem section is only included
+	// if this is a build of the firmware that is prepared to work with TD shim. This "prepared to work"
+	// bit is determined by the Google Compute Engine platform.
+	if !foundTDHOB && (!foundPermMem || !allowTDShim) {
 		return fmt.Errorf("TDX metadata doesn't contain section for Trust Domain Handover Block (TD HOB)")
 	}
 	if !foundBFV {
 		return fmt.Errorf("TDX metadata doesn't contain section for boot firmware volume")
 	}
-	if fvSize != firmwareLen {
+	if fvSize != firmwareLen && !allowTDShim {
 		return fmt.Errorf("total size of FVs doesn't add up to the fw size, total: 0x%x, expected: 0x%x", fvSize, firmwareLen)
 	}
 
@@ -138,28 +154,36 @@ func validateTDXMetadataSections(firmwareLen uint32, rawMetadata *abi.TDXMetadat
 
 type tdxFwParser struct {
 	Regions            []*MaterialGuestPhysicalRegion
+	PermRegions        []*MaterialGuestPhysicalRegion
 	Sections           []*abi.TDXMetadataSection
 	TDHOBregion        *MaterialGuestPhysicalRegion
 	DisableEarlyAccept bool
 	// MeasureAllRegions forces all regions to be measured, even if they are not marked as
 	// extendable in the metadata. This is only to be compatible with earlier versions
 	// Google's hypervisor.
-	MeasureAllRegions bool
+	MeasureAllRegions   bool
+	AllowTDShimMetadata bool
 }
 
 func (p *tdxFwParser) validateMetadataSectionGpr(sectionType uint32, gpr GuestPhysicalRegion) error {
-	for _, region := range p.Regions {
-		if region.GPR.intersect(gpr).Length != 0 {
-			return fmt.Errorf("TDX metadata section overlapping with other section. "+
-				"Type %v, Start, size [%v, %v] collides with Start, size [%v, %v]",
-				sectionType, gpr.Start, gpr.Length, region.GPR.Start, region.GPR.Length)
+	checkRegions := func(regions []*MaterialGuestPhysicalRegion) error {
+		for _, region := range regions {
+			if region.GPR.intersect(gpr).Length != 0 {
+				return fmt.Errorf("TDX metadata section overlapping with other section. "+
+					"Type %v, Start, size [%v, %v] collides with Start, size [%v, %v]",
+					sectionType, gpr.Start, gpr.Length, region.GPR.Start, region.GPR.Length)
+			}
 		}
+		return nil
 	}
-	return nil
+	if err := checkRegions(p.Regions); err != nil {
+		return err
+	}
+	return checkRegions(p.PermRegions)
 }
 
 func (p *tdxFwParser) parse(firmware []byte, guestRAMbanks []GuestPhysicalRegion) ([]*MaterialGuestPhysicalRegion, error) {
-	metadata, err := extractTDXMetadata(firmware)
+	metadata, err := extractTDXMetadata(firmware, p.AllowTDShimMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -176,42 +200,59 @@ func (p *tdxFwParser) parse(firmware []byte, guestRAMbanks []GuestPhysicalRegion
 		if err := p.validateMetadataSectionGpr(section.SectionType, gpr); err != nil {
 			return nil, err
 		}
-		zeroExtend := func() {
+		zeroExtend := func(regions *[]*MaterialGuestPhysicalRegion) {
 			var buf []byte
 			if p.MeasureAllRegions {
 				buf = make([]byte, gprSize)
 			}
-			p.Regions = append(p.Regions, &MaterialGuestPhysicalRegion{
+			*regions = append(*regions, &MaterialGuestPhysicalRegion{
 				GPR:            gpr,
 				HostBuffer:     buf,
 				TDVFAttributes: attributes,
 			})
 		}
-		fvExtend := func() {
-			p.Regions = append(p.Regions, &MaterialGuestPhysicalRegion{
+		fvExtend := func(regions *[]*MaterialGuestPhysicalRegion) {
+			*regions = append(*regions, &MaterialGuestPhysicalRegion{
 				GPR:            gpr,
 				HostBuffer:     firmware[section.DataOffset : section.DataOffset+uint32(gprSize)],
 				TDVFAttributes: attributes,
 			})
 		}
 		switch section.SectionType {
+		case abi.TDXMetadataSectionTypePermMem:
+			// unmeasured unaccepted memory that causes TDHOB to be ignored.
+			zeroExtend(&p.PermRegions)
 		case abi.TDXMetadataSectionTypeTDHOB:
 			tdHOBregionIndex = &wrapperspb.Int32Value{Value: int32(index)}
-			zeroExtend()
+			zeroExtend(&p.Regions)
 		case abi.TDXMetadataSectionTypeTempMem:
-			zeroExtend()
+			zeroExtend(&p.Regions)
+		case abi.TDXMetadataSectionTypePayload:
+			if section.DataSize == 0 {
+				zeroExtend(&p.Regions)
+			} else {
+				fvExtend(&p.Regions)
+			}
+		case abi.TDXMetadataSectionTypePayloadParam:
+			zeroExtend(&p.Regions)
 		case abi.TDXMetadataSectionTypeBFV:
-			fvExtend()
+			fvExtend(&p.Regions)
 		case abi.TDXMetadataSectionTypeCFV:
-			fvExtend()
+			fvExtend(&p.Regions)
+		case abi.TDXMetadataSectionTypeTDINFO:
+			// do nothing
 		default:
 			return nil, fmt.Errorf("unsupported metadata section type: %v", section.SectionType)
 		}
 	}
 
 	if tdHOBregionIndex == nil {
-		return nil, fmt.Errorf("TDX metadata sections don't contain section for TD HOB")
+		if len(p.PermRegions) == 0 || !p.AllowTDShimMetadata {
+			return nil, fmt.Errorf("TDX metadata sections don't contain section for TD HOB")
+		}
+		return p.Regions, nil
 	}
+
 	// Don't copy the region since we need to update the buffer within the list.
 	p.TDHOBregion = p.Regions[tdHOBregionIndex.Value]
 	unacceptedResources := unacceptedMemRanges(privateResources, guestRAMbanks)
@@ -378,6 +419,15 @@ func ExtractMaterialGuestPhysicalRegionsNoUnacceptedMemory(firmware []byte, gues
 func ExtractMaterialGuestPhysicalRegionsTDHOBBug(firmware []byte, guestRAMbanks []GuestPhysicalRegion) ([]*MaterialGuestPhysicalRegion, error) {
 	return (&tdxFwParser{DisableEarlyAccept: true, MeasureAllRegions: true}).parse(
 		firmware, guestRAMbanks)
+}
+
+// ExtractMaterialGuestPhysicalRegionsWithTDShim extracts the TDX guest physical regions from the
+// firmware binary with the direction that
+//   - the firmware provide some unaccepted memory to the guest OS as *not* marked for acceptance by the
+//     firmware.
+//   - the TDVF accounting for the TD-shim is honored.
+func ExtractMaterialGuestPhysicalRegionsWithTDShim(firmware []byte) ([]*MaterialGuestPhysicalRegion, error) {
+	return (&tdxFwParser{DisableEarlyAccept: true, AllowTDShimMetadata: true}).parse(firmware, nil)
 }
 
 // ExtractMaterialGuestPhysicalRegions extracts the TDX guest physical regions from the firmware binary
