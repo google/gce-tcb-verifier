@@ -191,13 +191,14 @@ func (c *sevValidateCommand) runE(cmd *cobra.Command, args []string) error {
 	case *tpmpb.Attestation_SevSnpAttestation:
 		return gcetcbendorsement.SevValidate(cmd.Context(), at.SevSnpAttestation,
 			&gcetcbendorsement.SevValidateOptions{
-				Now:              backend.Now,
-				Getter:           backend.Getter,
-				Endorsement:      c.endorsement,
-				Overwrite:        s.overwrite,
-				BasePolicy:       s.basePolicy,
-				RootsOfTrust:     rot,
-				TestonlyForceGCS: c.testonlyForceGCS,
+				Now:                 backend.Now,
+				Getter:              backend.Getter,
+				Endorsement:         c.endorsement,
+				Overwrite:           s.overwrite,
+				BasePolicy:          s.basePolicy,
+				RootsOfTrust:        rot,
+				ExpectedLaunchVmsas: s.launchVmsas,
+				TestonlyForceGCS:    c.testonlyForceGCS,
 			})
 	}
 

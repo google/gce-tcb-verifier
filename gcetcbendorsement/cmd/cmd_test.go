@@ -164,7 +164,15 @@ func initQuote(t testing.TB) func() {
 		if err != nil {
 			t.Fatalf("hex.DecodeString(CleanExampleTdxMeasurement) failed: %v", err)
 		}
-		cleanSnpMeasurement = wantSnpMeas
+		endoProto := &epb.VMLaunchEndorsement{}
+		if err := proto.Unmarshal(fakeEndorsement, endoProto); err != nil {
+			t.Fatalf("proto.Unmarshal(fakeEndorsement) failed: %v", err)
+		}
+		goldenProto := &epb.VMGoldenMeasurement{}
+		if err := proto.Unmarshal(endoProto.GetSerializedUefiGolden(), goldenProto); err != nil {
+			t.Fatalf("proto.Unmarshal(SerializedUefiGolden) failed: %v", err)
+		}
+		cleanSnpMeasurement = goldenProto.GetSevSnp().GetMeasurements()[2]
 		cleanTdxMeasurement = wantTdxMeas
 		// Set Version to 2
 		binary.LittleEndian.PutUint32(zeroRaw[0x00:0x04], 2)
@@ -560,7 +568,7 @@ func TestSevPolicy(t *testing.T) {
 	}{
 		{
 			name:  "success",
-			input: []string{endorsementPath, "--launch_vmsas", "1"},
+			input: []string{endorsementPath, "--launch_vmsas", "2"},
 			io: &testIO{
 				files: map[string]*ioResult{
 					endorsementPath: &ioResult{readBytes: fakeEndorsement},
@@ -575,7 +583,7 @@ func TestSevPolicy(t *testing.T) {
 		},
 		{
 			name:  "success binProto",
-			input: []string{endorsementPath, "--launch_vmsas", "1", "--out", "foo"},
+			input: []string{endorsementPath, "--launch_vmsas", "2", "--out", "foo"},
 			io: &testIO{
 				files: map[string]*ioResult{
 					endorsementPath: &ioResult{readBytes: fakeEndorsement},
@@ -591,7 +599,7 @@ func TestSevPolicy(t *testing.T) {
 		},
 		{
 			name:  "success with base",
-			input: []string{endorsementPath, "--launch_vmsas", "1", "--out", "foo", "--base", goodBasePath},
+			input: []string{endorsementPath, "--launch_vmsas", "2", "--out", "foo", "--base", goodBasePath},
 			io: &testIO{
 				files: map[string]*ioResult{
 					endorsementPath: &ioResult{readBytes: fakeEndorsement},
@@ -670,6 +678,18 @@ func TestSevValidate(t *testing.T) {
 					quotePath:       &ioResult{readBytes: goodSnpQuote},
 				},
 			},
+		},
+		{
+			name:  "fail mismatched launch_vmsas",
+			input: []string{quotePath, "--endorsement", endorsementPath, "--root_cert", rootPath, "--launch_vmsas", "2"},
+			io: &testIO{
+				files: map[string]*ioResult{
+					endorsementPath: &ioResult{readBytes: fakeEndorsement},
+					rootPath:        &ioResult{readBytes: devkeys.RootCert},
+					quotePath:       &ioResult{readBytes: goodSnpQuote},
+				},
+			},
+			wantErr: "report field MEASUREMENT",
 		},
 		{
 			name:  "fail endorsement fail not found",

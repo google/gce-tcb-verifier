@@ -15,6 +15,7 @@
 package gcetcbendorsement
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/hex"
@@ -38,6 +39,7 @@ import (
 	spb "github.com/google/go-sev-guest/proto/sevsnp"
 	test "github.com/google/go-sev-guest/testing"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -45,18 +47,21 @@ func TestSevValidate(t *testing.T) {
 	dir := t.TempDir()
 	now := time.Date(2024, time.March, 15, 15, 30, 0, 0, time.UTC)
 	ctx0 := context.Background()
+	fw := fakeovmf.CleanExample(t, 2*1024*1024)
+	svsmMeas := bytes.Repeat([]byte{0xab}, abi.MeasurementSize)
 	ec := &endorse.Context{
 		SevSnp: &sev.SnpEndorsementRequest{
 			Svn:         2,
 			FamilyID:    sev.GCEUefiFamilyID,
 			ImageID:     uuid.New().String(),
-			LaunchVmsas: 1,
+			LaunchVmsas: 0,
 			Product:     spb.SevProduct_SEV_PRODUCT_MILAN,
 		},
-		ClSpec:    4321,
-		Image:     fakeovmf.CleanExample(t, 2*1024*1024),
-		VCS:       &localnonvcs.T{Root: dir},
-		Timestamp: now,
+		ClSpec:             4321,
+		Image:              fw,
+		SvsmSnpMeasurement: svsmMeas,
+		VCS:                &localnonvcs.T{Root: dir},
+		Timestamp:          now,
 	}
 	manager := memkm.TestOnlyT()
 	kc := &keys.Context{
@@ -91,6 +96,10 @@ func TestSevValidate(t *testing.T) {
 	}
 	cleanMeasurement := "20ec0dbd1c0a26d184a6f11ec5a796d68ec03c9d101bdd84c03f3d9cbbc4a292a9fad098edacfa04da0da58f20be885e"
 	meas, _ := hex.DecodeString(cleanMeasurement)
+	meas2, err := sev.LaunchDigest(&sev.LaunchOptions{Vcpus: 2, Product: spb.SevProduct_SEV_PRODUCT_MILAN}, fw)
+	if err != nil {
+		t.Fatalf("sev.LaunchDigest() = %v, want nil", err)
+	}
 	endorsementURI := fmt.Sprintf("https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/%s.binarypb", cleanMeasurement)
 	report := &spb.Report{
 		Signature:       []byte("signature"),
@@ -108,6 +117,10 @@ func TestSevValidate(t *testing.T) {
 		ChipId:          make([]byte, abi.ChipIDSize),
 		Policy:          abi.SnpPolicyToBytes(abi.SnpPolicy{}),
 	}
+	svsmReport := proto.Clone(report).(*spb.Report)
+	svsmReport.Measurement = svsmMeas
+	twoVmsaReport := proto.Clone(report).(*spb.Report)
+	twoVmsaReport.Measurement = meas2
 	prodPolicy := abi.SnpPolicyToBytes(abi.SnpPolicy{
 		ABIMinor:     0,
 		ABIMajor:     0,
@@ -131,6 +144,55 @@ func TestSevValidate(t *testing.T) {
 					Extras:   map[string][]byte{sev.GCEFwCertGUID: endorsement}}},
 			opts: &SevValidateOptions{
 				RootsOfTrust: testroot,
+				BasePolicy: &cpb.Policy{
+					MinimumVersion: "0.0",
+					Policy:         prodPolicy,
+				},
+			},
+		},
+		{
+			name: "Happy path SVSM (ExpectedLaunchVmsas: 1)",
+			attestation: &spb.Attestation{
+				Report: svsmReport,
+				CertificateChain: &spb.CertificateChain{
+					VcekCert: s.Vcek.Raw,
+					Extras:   map[string][]byte{sev.GCEFwCertGUID: endorsement}}},
+			opts: &SevValidateOptions{
+				RootsOfTrust:        testroot,
+				ExpectedLaunchVmsas: 1,
+				BasePolicy: &cpb.Policy{
+					MinimumVersion: "0.0",
+					Policy:         prodPolicy,
+				},
+			},
+		},
+		{
+			name: "Fail ExpectedLaunchVmsas: 1 with bare OVMF 1-VMSA measurement",
+			attestation: &spb.Attestation{
+				Report: report,
+				CertificateChain: &spb.CertificateChain{
+					VcekCert: s.Vcek.Raw,
+					Extras:   map[string][]byte{sev.GCEFwCertGUID: endorsement}}},
+			opts: &SevValidateOptions{
+				RootsOfTrust:        testroot,
+				ExpectedLaunchVmsas: 1,
+				BasePolicy: &cpb.Policy{
+					MinimumVersion: "0.0",
+					Policy:         prodPolicy,
+				},
+			},
+			wantErr: "report field MEASUREMENT",
+		},
+		{
+			name: "Happy path 2 VMSAs (ExpectedLaunchVmsas: 2)",
+			attestation: &spb.Attestation{
+				Report: twoVmsaReport,
+				CertificateChain: &spb.CertificateChain{
+					VcekCert: s.Vcek.Raw,
+					Extras:   map[string][]byte{sev.GCEFwCertGUID: endorsement}}},
+			opts: &SevValidateOptions{
+				RootsOfTrust:        testroot,
+				ExpectedLaunchVmsas: 2,
 				BasePolicy: &cpb.Policy{
 					MinimumVersion: "0.0",
 					Policy:         prodPolicy,
