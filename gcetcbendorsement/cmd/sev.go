@@ -63,9 +63,10 @@ type sevPolicyCommand struct {
 }
 
 type sevValidateCommand struct {
-	endorsementPath  string
-	root             string
-	testonlyForceGCS bool
+	endorsementPath       string
+	root                  string
+	testonlyForceGCS      bool
+	allowUnspecifiedVmsas bool
 	// derived
 	content     []byte
 	endorsement *epb.VMLaunchEndorsement
@@ -193,14 +194,15 @@ func (c *sevValidateCommand) runE(cmd *cobra.Command, args []string) error {
 	case *tpmpb.Attestation_SevSnpAttestation:
 		return gcetcbendorsement.SevValidate(cmd.Context(), at.SevSnpAttestation,
 			&gcetcbendorsement.SevValidateOptions{
-				Now:                 backend.Now,
-				Getter:              backend.Getter,
-				Endorsement:         c.endorsement,
-				Overwrite:           s.overwrite,
-				BasePolicy:          s.basePolicy,
-				RootsOfTrust:        rot,
-				ExpectedLaunchVmsas: s.launchVmsas,
-				TestonlyForceGCS:    c.testonlyForceGCS,
+				Now:                   backend.Now,
+				Getter:                backend.Getter,
+				Endorsement:           c.endorsement,
+				Overwrite:             s.overwrite,
+				BasePolicy:            s.basePolicy,
+				RootsOfTrust:          rot,
+				ExpectedLaunchVmsas:   s.launchVmsas,
+				AllowUnspecifiedVmsas: c.allowUnspecifiedVmsas,
+				TestonlyForceGCS:      c.testonlyForceGCS,
 			})
 	}
 
@@ -223,6 +225,8 @@ The mandatory PATH must be to an attestation in one of the following formats:` +
 	cmd.Flags().StringVar(&c.root, "root_cert", "", "The root certificate for endorsements.")
 	cmd.Flags().BoolVar(&c.testonlyForceGCS, "testonly_force_gcs", false,
 		"Force fetch the endorsement from the network.")
+	cmd.Flags().BoolVar(&c.allowUnspecifiedVmsas, "allow_unspecified_vmsas", true,
+		"If true, validates the Measurement against any endorsed VMSA count when --launch_vmsas=0.")
 	cmd.SetContext(ctx)
 	return cmd
 }

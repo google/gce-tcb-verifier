@@ -136,9 +136,25 @@ func TestSevValidate(t *testing.T) {
 		wantErr     string
 	}{
 		{
-			name: "Happy path from attestation extra",
+			name: "Happy path from attestation extra (AllowUnspecifiedVmsas: true)",
 			attestation: &spb.Attestation{
 				Report: report,
+				CertificateChain: &spb.CertificateChain{
+					VcekCert: s.Vcek.Raw,
+					Extras:   map[string][]byte{sev.GCEFwCertGUID: endorsement}}},
+			opts: &SevValidateOptions{
+				RootsOfTrust:          testroot,
+				AllowUnspecifiedVmsas: true,
+				BasePolicy: &cpb.Policy{
+					MinimumVersion: "0.0",
+					Policy:         prodPolicy,
+				},
+			},
+		},
+		{
+			name: "Fail unspecified launch_vmsas when AllowUnspecifiedVmsas is false",
+			attestation: &spb.Attestation{
+				Report: svsmReport,
 				CertificateChain: &spb.CertificateChain{
 					VcekCert: s.Vcek.Raw,
 					Extras:   map[string][]byte{sev.GCEFwCertGUID: endorsement}}},
@@ -149,6 +165,7 @@ func TestSevValidate(t *testing.T) {
 					Policy:         prodPolicy,
 				},
 			},
+			wantErr: "launch_vmsas must be set to modify policy for endorsed measurement",
 		},
 		{
 			name: "Happy path SVSM (ExpectedLaunchVmsas: 1)",
@@ -205,7 +222,8 @@ func TestSevValidate(t *testing.T) {
 				Report:           report,
 				CertificateChain: &spb.CertificateChain{VcekCert: s.Vcek.Raw}},
 			opts: &SevValidateOptions{
-				RootsOfTrust: testroot,
+				RootsOfTrust:          testroot,
+				AllowUnspecifiedVmsas: true,
 				BasePolicy: &cpb.Policy{
 					MinimumVersion: "0.0",
 					Policy:         prodPolicy,
@@ -235,11 +253,14 @@ func TestSevValidate(t *testing.T) {
 			attestation: &spb.Attestation{CertificateChain: &spb.CertificateChain{
 				Extras: map[string][]byte{sev.GCEFwCertGUID: endorsement},
 			}},
-			opts: &SevValidateOptions{BasePolicy: &cpb.Policy{
-				Policy:         458752,
-				Vmpl:           &wrapperspb.UInt32Value{Value: 4},
-				MinimumVersion: "0.0",
-			}},
+			opts: &SevValidateOptions{
+				AllowUnspecifiedVmsas: true,
+				BasePolicy: &cpb.Policy{
+					Policy:         458752,
+					Vmpl:           &wrapperspb.UInt32Value{Value: 4},
+					MinimumVersion: "0.0",
+				},
+			},
 			wantErr: "could not translate policy to validation options",
 		},
 		{
@@ -250,11 +271,14 @@ func TestSevValidate(t *testing.T) {
 					VcekCert: s.Vcek.Raw,
 					Extras:   map[string][]byte{sev.GCEFwCertGUID: endorsement},
 				}},
-			opts: &SevValidateOptions{BasePolicy: &cpb.Policy{
-				Policy:         458752,
-				Vmpl:           &wrapperspb.UInt32Value{Value: 1},
-				MinimumVersion: "0.0",
-			}},
+			opts: &SevValidateOptions{
+				AllowUnspecifiedVmsas: true,
+				BasePolicy: &cpb.Policy{
+					Policy:         458752,
+					Vmpl:           &wrapperspb.UInt32Value{Value: 1},
+					MinimumVersion: "0.0",
+				},
+			},
 			wantErr: "report VMPL 0 is not 1",
 		},
 	}

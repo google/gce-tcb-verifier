@@ -35,14 +35,15 @@ const testonlyForceGCSGUID = "cd76f232-42fc-4140-87c2-fb5353a2bb32"
 
 // SevValidateOptions holds options for the sev-validate command.
 type SevValidateOptions struct {
-	Endorsement         *epb.VMLaunchEndorsement
-	BasePolicy          *cpb.Policy
-	Overwrite           bool
-	RootsOfTrust        *x509.CertPool
-	Now                 time.Time
-	Getter              verify.HTTPSGetter
-	ExpectedLaunchVmsas uint32
-	TestonlyForceGCS    bool
+	Endorsement           *epb.VMLaunchEndorsement
+	BasePolicy            *cpb.Policy
+	Overwrite             bool
+	RootsOfTrust          *x509.CertPool
+	Now                   time.Time
+	Getter                verify.HTTPSGetter
+	ExpectedLaunchVmsas   uint32
+	AllowUnspecifiedVmsas bool
+	TestonlyForceGCS      bool
 }
 
 func unmarshalEndorsement(data []byte) (*epb.VMLaunchEndorsement, error) {
@@ -98,7 +99,7 @@ func SevValidate(ctx context.Context, attestation *spb.Attestation, opts *SevVal
 		Base:                  opts.BasePolicy,
 		Overwrite:             opts.Overwrite,
 		LaunchVmsas:           opts.ExpectedLaunchVmsas,
-		AllowUnspecifiedVmsas: true,
+		AllowUnspecifiedVmsas: opts.AllowUnspecifiedVmsas,
 	})
 	if err != nil {
 		return err

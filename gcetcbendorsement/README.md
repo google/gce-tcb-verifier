@@ -274,14 +274,18 @@ Options:
 #### `validate` subcommand:
 
 Returns the results of comparing endorsed values (and optional base policy)
-against an attestation report. If `--launch_vmsas=0`, then an attestation is
-valid only if its measurement is in the endorsement for any number of VMSAs.
+against an attestation report. If `--launch_vmsas=0` and
+`--allow_unspecified_vmsas`, then an attestation is valid only if its
+measurement is in the endorsement for any number of VMSAs.
 
 The `FILE` mandatory argument is expected to be an attestation report (and
 optional collateral) in one of the supported formats.
 
 Options:
 
+*   `--allow_unspecified_vmsas`: If true, then `validate` will not error when
+    `--launch_vmsas=0` and will check that the attestation's measurement is in
+    the endorsement for any number of VMSAs. Default true.
 *   `--endorsement=FILE`: A path to a binary serialized `VMLaunchEndorsement` to
     supplement or replace the endorsement collateral of the attestation report.
     Default `""` and will **not** attempt to extract an endorsement from the

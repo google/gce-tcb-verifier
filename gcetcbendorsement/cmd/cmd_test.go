@@ -706,10 +706,16 @@ func TestSevValidate(t *testing.T) {
 			wantErr: "report field MEASUREMENT",
 		},
 		{
-			name:    "fail allow_unspecified_vmsas flag not accepted",
-			input:   []string{quotePath, "--allow_unspecified_vmsas"},
-			io:      &testIO{},
-			wantErr: "unknown flag: --allow_unspecified_vmsas",
+			name:  "fail allow_unspecified_vmsas=false without launch_vmsas",
+			input: []string{quotePath, "--endorsement", endorsementPath, "--root_cert", rootPath, "--allow_unspecified_vmsas=false"},
+			io: &testIO{
+				files: map[string]*ioResult{
+					endorsementPath: &ioResult{readBytes: fakeEndorsement},
+					rootPath:        &ioResult{readBytes: devkeys.RootCert},
+					quotePath:       &ioResult{readBytes: goodSnpQuote},
+				},
+			},
+			wantErr: "launch_vmsas must be set to modify policy for endorsed measurement",
 		},
 		{
 			name:  "fail endorsement fail not found",
