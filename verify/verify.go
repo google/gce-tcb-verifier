@@ -181,6 +181,20 @@ func EndorsementProto(endorsement *epb.VMLaunchEndorsement, opts *Options) error
 	return nil
 }
 
+// SnpMeasurement returns the expected launch measurement from a VMSevSnp endorsement
+// for a given launch VMSA count. For 1 launch VMSA (SVSM), it returns SvsmMeasurement.
+func SnpMeasurement(snp *epb.VMSevSnp, launchVMSAs uint32) ([]byte, bool) {
+	if snp == nil || launchVMSAs == 0 {
+		return nil, false
+	}
+	if launchVMSAs == 1 {
+		meas := snp.GetSvsmMeasurement()
+		return meas, len(meas) > 0
+	}
+	meas, ok := snp.GetMeasurements()[launchVMSAs]
+	return meas, ok && len(meas) > 0
+}
+
 // SNP returns an error if the golden measurement violates SNP-specific validation options.
 func SNP(golden *epb.VMGoldenMeasurement, opts *SNPOptions) error {
 	if golden.SevSnp == nil {
@@ -188,18 +202,10 @@ func SNP(golden *epb.VMGoldenMeasurement, opts *SNPOptions) error {
 	}
 	snp := golden.SevSnp
 	if opts.ExpectedLaunchVMSAs != 0 {
-		m := snp.Measurements
-		if m == nil {
+		if len(snp.GetMeasurements()) == 0 && len(snp.GetSvsmMeasurement()) == 0 {
 			return ErrNoSevSnpMeasurements
 		}
-		var measure []byte
-		var ok bool
-		if opts.ExpectedLaunchVMSAs == 1 {
-			measure = snp.SvsmMeasurement
-			ok = len(measure) > 0
-		} else {
-			measure, ok = m[opts.ExpectedLaunchVMSAs]
-		}
+		measure, ok := SnpMeasurement(snp, opts.ExpectedLaunchVMSAs)
 		if !ok {
 			return fmt.Errorf("no golden measurement for %d launch VMSAs", opts.ExpectedLaunchVMSAs)
 		}
