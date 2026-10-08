@@ -59,15 +59,72 @@ func TestSevPolicy(t *testing.T) {
 			wantErr: "failed to find measurement for 1 VMSA",
 		},
 		{
+			name: "launch_vmsas=1 and no svsm_measurement",
+			endorsement: &epb.VMLaunchEndorsement{
+				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
+					SevSnp: &epb.VMSevSnp{
+						Policy:       458752,
+						Measurements: map[uint32][]byte{1: []byte("bare_ovmf_meas")},
+					},
+				})},
+			opts:    &SevPolicyOptions{LaunchVmsas: 1},
+			wantErr: "failed to find measurement for 1 VMSA",
+		},
+		{
+			name: "svsm measurement only",
+			endorsement: &epb.VMLaunchEndorsement{
+				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
+					SevSnp: &epb.VMSevSnp{
+						Policy:          458752,
+						Measurements:    map[uint32][]byte{1: []byte("bare_ovmf_meas")},
+						SvsmMeasurement: []byte("svsm_meas"),
+					},
+				})},
+			opts: &SevPolicyOptions{LaunchVmsas: 1},
+			want: &cpb.Policy{
+				Policy:         458752,
+				MinimumVersion: "0.0",
+				Measurement:    []byte("svsm_meas")},
+		},
+		{
+			name: "svsm measurement conflict",
+			endorsement: &epb.VMLaunchEndorsement{
+				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
+					SevSnp: &epb.VMSevSnp{
+						SvsmMeasurement: []byte("meas"),
+					},
+				})},
+			opts: &SevPolicyOptions{
+				LaunchVmsas: 1,
+				Base:        &cpb.Policy{Measurement: []byte("not meas")},
+			},
+			wantErr: "measurement [110 111 116 32 109 101 97 115] overwritten with [109 101 97 115]",
+		},
+		{
+			name: "svsm measurement overwrite",
+			endorsement: &epb.VMLaunchEndorsement{
+				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
+					SevSnp: &epb.VMSevSnp{
+						SvsmMeasurement: []byte("meas"),
+					},
+				})},
+			opts: &SevPolicyOptions{
+				LaunchVmsas: 1,
+				Base:        &cpb.Policy{Measurement: []byte("not meas")},
+				Overwrite:   true,
+			},
+			want: &cpb.Policy{Measurement: []byte("meas")},
+		},
+		{
 			name: "measurement only",
 			endorsement: &epb.VMLaunchEndorsement{
 				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
 					SevSnp: &epb.VMSevSnp{
 						Policy:       458752,
-						Measurements: map[uint32][]byte{1: []byte("meas")},
+						Measurements: map[uint32][]byte{2: []byte("meas")},
 					},
 				})},
-			opts: &SevPolicyOptions{LaunchVmsas: 1},
+			opts: &SevPolicyOptions{LaunchVmsas: 2},
 			want: &cpb.Policy{
 				Policy:         458752,
 				MinimumVersion: "0.0",
@@ -78,11 +135,11 @@ func TestSevPolicy(t *testing.T) {
 			endorsement: &epb.VMLaunchEndorsement{
 				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
 					SevSnp: &epb.VMSevSnp{
-						Measurements: map[uint32][]byte{1: []byte("meas")},
+						Measurements: map[uint32][]byte{2: []byte("meas")},
 					},
 				})},
 			opts: &SevPolicyOptions{
-				LaunchVmsas: 1,
+				LaunchVmsas: 2,
 				Base:        &cpb.Policy{Measurement: []byte("not meas")},
 			},
 			wantErr: "measurement [110 111 116 32 109 101 97 115] overwritten with [109 101 97 115]",
@@ -92,11 +149,11 @@ func TestSevPolicy(t *testing.T) {
 			endorsement: &epb.VMLaunchEndorsement{
 				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
 					SevSnp: &epb.VMSevSnp{
-						Measurements: map[uint32][]byte{1: []byte("meas")},
+						Measurements: map[uint32][]byte{2: []byte("meas")},
 					},
 				})},
 			opts: &SevPolicyOptions{
-				LaunchVmsas: 1,
+				LaunchVmsas: 2,
 				Base:        &cpb.Policy{Measurement: []byte("not meas")},
 				Overwrite:   true,
 			},
@@ -111,7 +168,7 @@ func TestSevPolicy(t *testing.T) {
 					},
 				})},
 			opts: &SevPolicyOptions{
-				LaunchVmsas: 1,
+				LaunchVmsas: 2,
 				Base:        &cpb.Policy{MinimumGuestSvn: 3},
 			},
 			wantErr: "minimum_guest_svn 3 rejects 2",
@@ -122,11 +179,11 @@ func TestSevPolicy(t *testing.T) {
 				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
 					SevSnp: &epb.VMSevSnp{
 						Svn:          2,
-						Measurements: map[uint32][]byte{1: []byte("meas")},
+						Measurements: map[uint32][]byte{2: []byte("meas")},
 					},
 				})},
 			opts: &SevPolicyOptions{
-				LaunchVmsas: 1,
+				LaunchVmsas: 2,
 				Base:        &cpb.Policy{MinimumGuestSvn: 1},
 			},
 			want: &cpb.Policy{MinimumGuestSvn: 1, Measurement: []byte("meas")},
@@ -137,11 +194,11 @@ func TestSevPolicy(t *testing.T) {
 				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
 					SevSnp: &epb.VMSevSnp{
 						Svn:          2,
-						Measurements: map[uint32][]byte{1: []byte("meas")},
+						Measurements: map[uint32][]byte{2: []byte("meas")},
 					},
 				})},
 			opts: &SevPolicyOptions{
-				LaunchVmsas: 1,
+				LaunchVmsas: 2,
 				Base:        &cpb.Policy{MinimumGuestSvn: 3},
 				Overwrite:   true,
 			},
@@ -157,7 +214,7 @@ func TestSevPolicy(t *testing.T) {
 					},
 				})},
 			opts: &SevPolicyOptions{
-				LaunchVmsas: 1,
+				LaunchVmsas: 2,
 				Base:        &cpb.Policy{Policy: 5},
 			},
 			wantErr: "policy 5 overwritten with 4",
@@ -168,11 +225,11 @@ func TestSevPolicy(t *testing.T) {
 				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
 					SevSnp: &epb.VMSevSnp{
 						Policy:       4,
-						Measurements: map[uint32][]byte{1: []byte("meas")},
+						Measurements: map[uint32][]byte{2: []byte("meas")},
 					},
 				})},
 			opts: &SevPolicyOptions{
-				LaunchVmsas: 1,
+				LaunchVmsas: 2,
 				Base:        &cpb.Policy{Policy: 5},
 				Overwrite:   true,
 			},
@@ -185,11 +242,11 @@ func TestSevPolicy(t *testing.T) {
 				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
 					SevSnp: &epb.VMSevSnp{
 						CaBundle:     []byte("bad cert"),
-						Measurements: map[uint32][]byte{1: []byte("meas")},
+						Measurements: map[uint32][]byte{2: []byte("meas")},
 					},
 				})},
 			opts: &SevPolicyOptions{
-				LaunchVmsas: 1,
+				LaunchVmsas: 2,
 				Base:        &cpb.Policy{},
 			},
 			wantErr: "could not parse CA bundle as PEM",
@@ -200,11 +257,11 @@ func TestSevPolicy(t *testing.T) {
 				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
 					SevSnp: &epb.VMSevSnp{
 						CaBundle:     []byte("-----BEGIN PUBLIC KEY-----\n-----END PUBLIC KEY-----\n"),
-						Measurements: map[uint32][]byte{1: []byte("meas")},
+						Measurements: map[uint32][]byte{2: []byte("meas")},
 					},
 				})},
 			opts: &SevPolicyOptions{
-				LaunchVmsas: 1,
+				LaunchVmsas: 2,
 				Base:        &cpb.Policy{},
 			},
 			wantErr: "ca bundle identity key PEM type is \"PUBLIC KEY\", want CERTIFICATE",
@@ -215,11 +272,11 @@ func TestSevPolicy(t *testing.T) {
 				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
 					SevSnp: &epb.VMSevSnp{
 						CaBundle:     []byte("-----BEGIN CERTIFICATE-----\nY2VydA==\n-----END CERTIFICATE-----\n"),
-						Measurements: map[uint32][]byte{1: []byte("meas")},
+						Measurements: map[uint32][]byte{2: []byte("meas")},
 					},
 				})},
 			opts: &SevPolicyOptions{
-				LaunchVmsas: 1,
+				LaunchVmsas: 2,
 				Base:        &cpb.Policy{TrustedIdKeys: [][]byte{[]byte("begin")}},
 			},
 			want: &cpb.Policy{
@@ -233,11 +290,11 @@ func TestSevPolicy(t *testing.T) {
 				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
 					SevSnp: &epb.VMSevSnp{
 						CaBundle:     []byte("-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\nbad cert"),
-						Measurements: map[uint32][]byte{1: []byte("meas")},
+						Measurements: map[uint32][]byte{2: []byte("meas")},
 					},
 				})},
 			opts: &SevPolicyOptions{
-				LaunchVmsas: 1,
+				LaunchVmsas: 2,
 				Base:        &cpb.Policy{},
 			},
 			wantErr: "could not parse CA bundle remainder as PEM",
@@ -248,11 +305,11 @@ func TestSevPolicy(t *testing.T) {
 				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
 					SevSnp: &epb.VMSevSnp{
 						CaBundle:     []byte("-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n-----BEGIN PUBLIC KEY-----\n-----END PUBLIC KEY-----\n"),
-						Measurements: map[uint32][]byte{1: []byte("meas")},
+						Measurements: map[uint32][]byte{2: []byte("meas")},
 					},
 				})},
 			opts: &SevPolicyOptions{
-				LaunchVmsas: 1,
+				LaunchVmsas: 2,
 				Base:        &cpb.Policy{},
 			},
 			wantErr: "ca bundle author key PEM type is \"PUBLIC KEY\", want CERTIFICATE",
@@ -263,11 +320,11 @@ func TestSevPolicy(t *testing.T) {
 				SerializedUefiGolden: testlib.GoldenT(t, &epb.VMGoldenMeasurement{
 					SevSnp: &epb.VMSevSnp{
 						CaBundle:     []byte("-----BEGIN CERTIFICATE-----\nY2VydA==\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\nc2tpcnQ=\n-----END CERTIFICATE-----\n"),
-						Measurements: map[uint32][]byte{1: []byte("meas")},
+						Measurements: map[uint32][]byte{2: []byte("meas")},
 					},
 				})},
 			opts: &SevPolicyOptions{
-				LaunchVmsas: 1,
+				LaunchVmsas: 2,
 				Base: &cpb.Policy{
 					TrustedIdKeys:     [][]byte{[]byte("begin")},
 					TrustedAuthorKeys: [][]byte{[]byte("bagin")},

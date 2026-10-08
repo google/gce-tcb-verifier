@@ -95,6 +95,10 @@ func TestVerify(t *testing.T) {
 		0x1a, 0x8c, 0xd8, 0x03, 0x9c, 0xdc, 0xdc, 0xd1, 0xec, 0x98, 0x00, 0xca, 0x21, 0x5b, 0xa5, 0xcb,
 		0xbe, 0xd4, 0x37, 0x69, 0x7d, 0xeb, 0xf0, 0xb2, 0xfc, 0x1a, 0x9b, 0x87, 0x3f, 0x1e, 0xb1, 0x5f,
 		0x82, 0xdc, 0x7d, 0x5c, 0xf2, 0x46, 0xdb, 0xee, 0x4d, 0xf1, 0xbb, 0x9d, 0x3b, 0x6c, 0x7a, 0x16}
+	fakeSvsmMeasurement := []byte{
+		0x2b, 0x9d, 0xe9, 0x14, 0xad, 0xed, 0xed, 0xe2, 0xfd, 0xa9, 0x11, 0xdb, 0x32, 0x6c, 0xb6, 0xdc,
+		0xcf, 0xe5, 0x48, 0x7a, 0x8e, 0xfc, 0x01, 0xc3, 0x0d, 0x2b, 0xac, 0x98, 0x40, 0x2f, 0xc2, 0x60,
+		0x93, 0xed, 0x8e, 0x6d, 0x03, 0x57, 0xec, 0xff, 0x5e, 0x02, 0xcc, 0xae, 0x4c, 0x7d, 0x8b, 0x27}
 	imageUUIDstring := "87654321-dead-beef-c0de-123456789ABC"
 	familyUUID := uuid.MustParse(sev.GCEUefiFamilyID)
 	imageUUID := uuid.MustParse(imageUUIDstring)
@@ -104,11 +108,12 @@ func TestVerify(t *testing.T) {
 		CaBundle:  bundle,
 		Digest:    uefidigest[:],
 		SevSnp: &epb.VMSevSnp{
-			Svn:          0x1337,
-			FamilyId:     familyUUID[:],
-			ImageId:      imageUUID[:],
-			Policy:       0x70000,
-			Measurements: map[uint32][]byte{4: fakeMeasurement},
+			Svn:             0x1337,
+			FamilyId:        familyUUID[:],
+			ImageId:         imageUUID[:],
+			Policy:          0x70000,
+			Measurements:    map[uint32][]byte{1: fakeMeasurement, 4: fakeMeasurement},
+			SvsmMeasurement: fakeSvsmMeasurement,
 		},
 	}
 
@@ -198,6 +203,25 @@ func TestVerify(t *testing.T) {
 			endorsement: endorsement,
 			pool:        pool,
 			snp:         &verify.SNPOptions{Measurement: fakeMeasurement},
+		},
+		{
+			name:        "happy snp measurement [SVSM any VMSA]",
+			endorsement: endorsement,
+			pool:        pool,
+			snp:         &verify.SNPOptions{Measurement: fakeSvsmMeasurement},
+		},
+		{
+			name:        "happy snp measurement [1 VMSA / SVSM]",
+			endorsement: endorsement,
+			pool:        pool,
+			snp:         &verify.SNPOptions{Measurement: fakeSvsmMeasurement, ExpectedLaunchVMSAs: 1},
+		},
+		{
+			name:        "snp measurement 1 VMSA does not match non-SVSM",
+			endorsement: endorsement,
+			pool:        pool,
+			snp:         &verify.SNPOptions{Measurement: fakeMeasurement, ExpectedLaunchVMSAs: 1},
+			wantErr:     "does not match measurement for 1 VMSAs",
 		},
 		{
 			name:        "happy snp measurement [4 VMSAs]",

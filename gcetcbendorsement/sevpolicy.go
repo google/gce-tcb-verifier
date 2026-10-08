@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	epb "github.com/google/gce-tcb-verifier/proto/endorsement"
+	"github.com/google/gce-tcb-verifier/verify"
 	"github.com/google/go-sev-guest/abi"
 	cpb "github.com/google/go-sev-guest/proto/check"
 )
@@ -54,7 +55,7 @@ func policyModificationAllowed(sev *epb.VMSevSnp, policy *cpb.Policy, opts *SevP
 		return fmt.Errorf("policy %d overwritten with %d", policy.GetPolicy(), sev.GetPolicy())
 	}
 	if opts.LaunchVmsas != 0 {
-		meas := sev.Measurements[opts.LaunchVmsas]
+		meas, _ := verify.SnpMeasurement(sev, opts.LaunchVmsas)
 		if !allowBytes(meas, policy.GetMeasurement()) {
 			return fmt.Errorf("measurement %v overwritten with %v", policy.GetMeasurement(), meas)
 		}
@@ -92,7 +93,7 @@ func modifyPolicy(sev *epb.VMSevSnp, policy *cpb.Policy, opts *SevPolicyOptions)
 		}
 		// Otherwise skip specifying a policy measurement.
 	} else {
-		meas, ok := sev.Measurements[opts.LaunchVmsas]
+		meas, ok := verify.SnpMeasurement(sev, opts.LaunchVmsas)
 		if !ok {
 			var plural string
 			if opts.LaunchVmsas != 1 {
