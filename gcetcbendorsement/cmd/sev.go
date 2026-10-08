@@ -41,10 +41,9 @@ const (
 )
 
 type sevCommand struct {
-	overwrite             bool
-	base                  string
-	launchVmsas           uint32
-	allowUnspecifiedVmsas bool
+	overwrite   bool
+	base        string
+	launchVmsas uint32
 	// derived
 	basePolicy *cpb.Policy
 }
@@ -54,8 +53,9 @@ type sevKeyType struct{}
 var sevKey sevKeyType
 
 type sevPolicyCommand struct {
-	out     string
-	outform string
+	out                   string
+	outform               string
+	allowUnspecifiedVmsas bool
 	// derived
 	textproto   bool
 	bytesform   gcetcbendorsement.BytesForm
@@ -106,7 +106,7 @@ func (c *sevPolicyCommand) runE(cmd *cobra.Command, args []string) error {
 		Base:                  s.basePolicy,
 		Overwrite:             s.overwrite,
 		LaunchVmsas:           s.launchVmsas,
-		AllowUnspecifiedVmsas: s.allowUnspecifiedVmsas,
+		AllowUnspecifiedVmsas: c.allowUnspecifiedVmsas,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to generate sev policy: %v", err)
@@ -145,6 +145,8 @@ The mandatory PATH must be to a binary serialized VMLaunchEndorsement.
 	cmd.Flags().StringVar(&c.out, "out", "-", "Path to output serialized check.Policy. "+
 		"Default - for stdout.")
 	cmd.Flags().StringVar(&c.outform, "outform", "auto", outformUsage)
+	cmd.Flags().BoolVar(&c.allowUnspecifiedVmsas, "allow_unspecified_vmsas", false,
+		"If true, disregards the Measurement component of the endorsement when updating a policy.")
 	cmd.SetContext(ctx)
 	return cmd
 }
@@ -237,10 +239,8 @@ func (c *sevCommand) persistentPreRunE(cmd *cobra.Command, _ []string) error {
 func makeSevCommand(ctx0 context.Context) *cobra.Command {
 	c := &sevCommand{}
 	cmd := &cobra.Command{
-		Use: "sev CMD [-base=PATH] [-overwrite] [-launch_vmsas=#] [-allow_unspecified_vmsas]",
-		Long: `Outputs the extended go-sev-guest check.Policy with endorsement reference values.
-
-The mandatory PATH must be to a binary serialized VMLaunchEndorsement.
+		Use: "sev CMD [-base=PATH] [-overwrite] [-launch_vmsas=#]",
+		Long: `Commands for SEV-SNP endorsement policies and attestation validation.
 `,
 		PersistentPreRunE: c.persistentPreRunE,
 		RunE: func(*cobra.Command, []string) error {
@@ -251,8 +251,6 @@ The mandatory PATH must be to a binary serialized VMLaunchEndorsement.
 		"If false, it is an error for populated base policy fields to be overwritten.")
 	cmd.PersistentFlags().StringVar(&c.base, "base", "", "Path to base go-sev-guest check.Policy.")
 	cmd.PersistentFlags().Uint32Var(&c.launchVmsas, "launch_vmsas", 0, "Number of VMSAs at launch.")
-	cmd.PersistentFlags().BoolVar(&c.allowUnspecifiedVmsas, "allow_unspecified_vmsas", false,
-		"If true, disregards the Measurement component of the endorsement when updating a policy.")
 	ctx := context.WithValue(ctx0, sevKey, c)
 	cmd.AddCommand(makeSevValidateCommand(ctx))
 	cmd.AddCommand(makeSevPolicyCommand(ctx))

@@ -624,6 +624,20 @@ func TestSevPolicy(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "success allow_unspecified_vmsas",
+			input: []string{endorsementPath, "--allow_unspecified_vmsas"},
+			io: &testIO{
+				files: map[string]*ioResult{
+					endorsementPath: &ioResult{readBytes: fakeEndorsement},
+				},
+			},
+			want: wantProto(&cpb.Policy{
+				Policy:         (1 << 17) | (1 << 18) | (1 << 16),
+				MinimumVersion: "0.0",
+			},
+				prototext.Unmarshal),
+		},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
@@ -690,6 +704,12 @@ func TestSevValidate(t *testing.T) {
 				},
 			},
 			wantErr: "report field MEASUREMENT",
+		},
+		{
+			name:    "fail allow_unspecified_vmsas flag not accepted",
+			input:   []string{quotePath, "--allow_unspecified_vmsas"},
+			io:      &testIO{},
+			wantErr: "unknown flag: --allow_unspecified_vmsas",
 		},
 		{
 			name:  "fail endorsement fail not found",
