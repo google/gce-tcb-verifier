@@ -88,7 +88,7 @@ func (c *fakeChangeOps) ReadFile(_ context.Context, path string) ([]byte, error)
 	}
 	return data, nil
 }
-func (c *fakeChangeOps) SetBinaryWritable(_ context.Context, path string) error {
+func (c *fakeChangeOps) SetWritable(_ context.Context, path string) error {
 	c.vcs.binary[path] = true
 	return nil
 }
