@@ -70,6 +70,14 @@ func TdxValidate(ctx context.Context, attestation []byte, opts *TdxValidateOptio
 			return fmt.Errorf("failed to unmarshal endorsement: %v", err)
 		}
 	}
+	// Verify the endorsement signature against the roots of trust before trusting its golden measurements.
+	if err := verify.EndorsementProto(endorsement, &verify.Options{
+		RootsOfTrust: opts.RootsOfTrust,
+		Now:          opts.Now,
+		Getter:       opts.Getter,
+	}); err != nil {
+		return fmt.Errorf("endorsement verification failed: %v", err)
+	}
 	policy, err := TdxPolicy(ctx, endorsement, &TdxPolicyOptions{
 		Base:      opts.BasePolicy,
 		Overwrite: opts.Overwrite,

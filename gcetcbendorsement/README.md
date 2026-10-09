@@ -243,11 +243,7 @@ Options for both sev subcommands:
     "0.0"}`
 *   `--launch_vmsas=#`: Number of VMSAs measured at launch. This should be the
     number of vCPUs the VM was created with. If running with an SVSM, it should
-    be 1. Default 0 for unspecified, which is an error without
-    `--allow_unspecified_vmsas`.
-*   `--allow_unspecified_vmsas`: If true, then commands will not error when
-    `--launch_vmsas=0`. See individual commands for the impact on behavior.
-    Default false.
+    be 1. Default 0 for unspecified.
 
 #### `policy` subcommand:
 
@@ -255,14 +251,17 @@ Produces a
 [`check.Policy`](https://github.com/google/go-sev-guest/tree/main/proto/check.proto)
 with reference values from an endorsement. It may amend an optional `--base`
 policy. If fields conflict, the command will fail unless `overwrite` is true.
-If `--launch_vmsas=0` and `--allow_unspecified_vmsas`, then the base policy's
-measurement field will not be changed.
+If `--launch_vmsas=0`, the command will fail unless `--allow_unspecified_vmsas`
+is set, in which case the base policy's measurement field will not be changed.
 
 The `FILE` mandatory argument is expected to be a binary-serialized
 `VMLaunchEndorsement`.
 
 Options:
 
+*   `--allow_unspecified_vmsas`: If true, then `policy` will not error when
+    `--launch_vmsas=0` and the base policy's measurement field will not be
+    changed. Default false.
 *   `--out=FILE`: A path to the output location for the updated policy. Default
     is stdout, i.e., `-out=-`.
 *   `--outform=textproto|bin|hex|base64|auto`: selects the output format of the
@@ -284,6 +283,9 @@ optional collateral) in one of the supported formats.
 
 Options:
 
+*   `--allow_unspecified_vmsas`: If true, then `validate` will not error when
+    `--launch_vmsas=0` and will check that the attestation's measurement is in
+    the endorsement for any number of VMSAs. Default true.
 *   `--endorsement=FILE`: A path to a binary serialized `VMLaunchEndorsement` to
     supplement or replace the endorsement collateral of the attestation report.
     Default `""` and will **not** attempt to extract an endorsement from the

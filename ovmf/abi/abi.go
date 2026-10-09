@@ -66,6 +66,10 @@ const (
 	// SevSvsmCaaSection is the OVMF value of the SEV CPUID section. Can be found here:
 	// https://github.com/coconut-svsm/edk2/blob/svsm/OvmfPkg/ResetVector/X64/OvmfSevMetadata.asm
 	SevSvsmCaaSection = uint32(0x4)
+	// SevSnpKernelHashesSection is the OVMF value of the SNP kernel hashes section
+	// for measured direct boot. Can be found here:
+	// https://github.com/tianocore/edk2/blob/master/OvmfPkg/ResetVector/X64/OvmfSevMetadata.nasm.inc
+	SevSnpKernelHashesSection = uint32(0x10)
 	// SizeofSevEsResetBlock is the ABI size of the packed struct of an SevEsResetBlock.
 	SizeofSevEsResetBlock = 22
 	// SizeofMetadataOffset is the ABI size of the packed struct of a MetadataOffset.

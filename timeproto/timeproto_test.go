@@ -12,29 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package timeproto provides functions for translating timestamps between Golang and Protobuf.
 package timeproto
 
 import (
+	"testing"
 	"time"
-
-	tspb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// To translates a golang Time object to a protobuf Timestamp message.
-func To(t time.Time) *tspb.Timestamp {
-	const NanosPerSecond = 1000000000
-	return &tspb.Timestamp{
-		Seconds: t.Unix(),
-		Nanos:   int32(t.UnixNano() % NanosPerSecond),
+func TestFromNilDoesNotPanic(t *testing.T) {
+	if got := From(nil); !got.IsZero() {
+		t.Errorf("From(nil) = %v, want zero Time", got)
 	}
 }
 
-// From translates a protobuf Timestamp message to a Golang Time object.
-// Returns the zero Time if t is nil.
-func From(t *tspb.Timestamp) time.Time {
-	if t == nil {
-		return time.Time{}
+func TestFromToRoundTrip(t *testing.T) {
+	want := time.Unix(1700000000, 12345)
+	if got := From(To(want)); !got.Equal(want) {
+		t.Errorf("From(To(%v)) = %v, want %v", want, got, want)
 	}
-	return time.Unix(t.Seconds, int64(t.Nanos))
 }
