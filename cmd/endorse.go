@@ -68,6 +68,8 @@ func (f *endorseCommand) AddFlags(cmd *cobra.Command) {
 		SevSnp: &sev.SnpEndorsementRequest{},
 		Tdx:    &tdx.EndorsementRequest{},
 	}
+	cmd.PersistentFlags().StringVar(&ec.SvsmGitHash, "svsm_git_hash", "",
+		"The hexstring of the git commit that the SVSM was built from.")
 	cmd.PersistentFlags().StringVar(&ec.CandidateName, "candidate_name", "",
 		"Release candidate the signature should be submitted to directly. Optional.")
 	cmd.PersistentFlags().StringVar(&ec.ReleaseBranch, "release_branch", "",
