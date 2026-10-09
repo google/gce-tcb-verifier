@@ -74,11 +74,11 @@ func phasedArgs(phase int, bucket string) func(t testing.TB) []string {
 			}
 		}
 		if phase > 0 {
-			manifestytes, err := prototext.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(manifest)
+			manifestBytes, err := prototext.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(manifest)
 			if err != nil {
 				t.Fatalf("prototext.Marshal failed: %v", err)
 			}
-			if err := os.WriteFile(manifestPath, manifestytes, 0644); err != nil {
+			if err := os.WriteFile(manifestPath, manifestBytes, 0644); err != nil {
 				t.Fatalf("os.WriteFile %q failed: %v", manifestPath, err)
 			}
 		}
