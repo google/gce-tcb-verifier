@@ -82,6 +82,9 @@ type Context struct {
 	SvsmImage []byte
 	// SvsmSnpMeasurement is expected SEV-SNP measurement of the SVSM, if supplied.
 	SvsmSnpMeasurement []byte
+	// CommitDescription is the description to use for the commit that persists the endorsement.
+	// May use {CANDIDATE_NAME} to replace with the CandidateName field.
+	CommitDescription string
 }
 
 type endorseKeyType struct{}
