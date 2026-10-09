@@ -42,6 +42,8 @@ var (
 	// ErrNoEndorseContext is returned when the context.Context object does not contain the
 	// EndorseContext.
 	ErrNoEndorseContext = errors.New("no EndorseContext found")
+	// ErrNoVCS is returned when the Context object does not contain a VersionControl object.
+	ErrNoVCS = errors.New("no VCS object found in EndorseContext")
 	// ManifestFile is the basename of the VMEndorsementMap signature manifest.
 	ManifestFile = "manifest.textproto"
 	// DefaultEndorsementBasename is used for the file basename (minus file extension) of the signed
@@ -426,6 +428,9 @@ func RetrySubmit(ctx context.Context, f func(context.Context, ChangeOps) (string
 	if err != nil {
 		return err
 	}
+	if ec.VCS == nil {
+		return ErrNoVCS
+	}
 	var tries int
 	for {
 		err := tryChange(ctx, f)
@@ -442,7 +447,7 @@ func RetrySubmit(ctx context.Context, f func(context.Context, ChangeOps) (string
 		if remain < 0 {
 			break
 		}
-		output.Debugf(ctx, "Warning: Retrying (%d retries left) submission", remain)
+		output.Warningf(ctx, "Retrying (%d retries left) submission", remain)
 	}
 	return ErrNoRetries
 }
