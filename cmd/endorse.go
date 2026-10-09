@@ -118,16 +118,7 @@ func validateSnpFlags(f *sev.SnpEndorsementRequest) error {
 // The SVN for SEV, TDX, and non-CoCo are all the same for now.
 func scrtmMain(path string) (bool, uint32, error) {
 	// Read the bundled SVN if it exists.
-	var versionBytes []byte
-	var err error
-	for _, path := range []string{
-		strings.Replace(path, ".fd", "_scrtm_ver.pb", 1),
-		path + ".scrtm.pb"} {
-		versionBytes, err = os.ReadFile(path)
-		if err == nil {
-			break
-		}
-	}
+	versionBytes, _ := os.ReadFile(path + ".scrtm.pb")
 	if len(versionBytes) == 0 {
 		return false, 0, nil
 	}
