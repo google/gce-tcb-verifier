@@ -312,6 +312,13 @@ func snapshotEndorsement(ctx context.Context, cops ChangeOps, endorsement *epb.V
 		if len(scrtm) != 0 {
 			files = append(files, &File{Path: svsmSCRTMPath, Contents: scrtm})
 		}
+		if ec.SvsmGitHash != "" {
+			svsmGitHashPath := ec.VCS.ReleasePath(ctx, path.Join(ec.SnapshotDir, "svsm_git_hash.txt"))
+			files = append(files, &File{
+				Path:     svsmGitHashPath,
+				Contents: []byte(ec.SvsmGitHash + "\n"),
+			})
+		}
 	}
 	if err := writeEndorsement(ctx, endorsementPaths, endorsement, cops); err != nil {
 		return err

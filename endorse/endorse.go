@@ -82,6 +82,8 @@ type Context struct {
 	SvsmImage []byte
 	// SvsmSnpMeasurement is expected SEV-SNP measurement of the SVSM, if supplied.
 	SvsmSnpMeasurement []byte
+	// SvsmGitHash is the git commit hash that the SVSM was built from, if supplied.
+	SvsmGitHash string
 	// CommitDescription is the description to use for the commit that persists the endorsement.
 	// May use {CANDIDATE_NAME} to replace with the CandidateName field.
 	CommitDescription string
