@@ -84,9 +84,8 @@ type ChangeOps interface {
 	WriteOrCreateFiles(ctx context.Context, files ...*File) error
 	// ReadFile returns the content of the given file, or an error.
 	ReadFile(ctx context.Context, path string) ([]byte, error)
-	// SetBinaryWritable sets the metadata of the given file to denote it as binary and writable, and
-	// returns nil on success.
-	SetBinaryWritable(ctx context.Context, path string) error
+	// SetWritable sets the metadata of the given file to denote it as writable, and returns nil on success.
+	SetWritable(ctx context.Context, path string) error
 	// IsNotFound returns if any errors returned by the implementation should be interpreted as file
 	// not found.
 	IsNotFound(err error) bool
@@ -222,10 +221,9 @@ func writeEndorsement(ctx context.Context, paths []string, endorsement *epb.VMLa
 	if err := cops.WriteOrCreateFiles(ctx, files...); err != nil {
 		return err
 	}
-	// The endorsement is a binarypb, but files are default text. We have to change it to binary.
 	for _, path := range paths {
-		if err := cops.SetBinaryWritable(ctx, path); err != nil {
-			return fmt.Errorf("could not set %q type to binary: %w", path, err)
+		if err := cops.SetWritable(ctx, path); err != nil {
+			return fmt.Errorf("could not set %q type to writable: %w", path, err)
 		}
 	}
 	return nil
@@ -320,7 +318,7 @@ func snapshotEndorsement(ctx context.Context, cops ChangeOps, endorsement *epb.V
 		return err
 	}
 	for _, f := range files {
-		if err := cops.SetBinaryWritable(ctx, f.Path); err != nil {
+		if err := cops.SetWritable(ctx, f.Path); err != nil {
 			return fmt.Errorf("could not set %q type to binary: %w", f.Path, err)
 		}
 	}

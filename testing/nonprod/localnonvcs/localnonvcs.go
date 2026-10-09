@@ -55,9 +55,9 @@ func (*changeOps) ReadFile(_ context.Context, path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
 
-// SetBinaryWritable sets the metadata of the given file to denote it as binary and writable, and
-// returns nil on success.
-func (*changeOps) SetBinaryWritable(_ context.Context, path string) error {
+// SetWritable sets the metadata of the given file to denote it as writable, and returns nil on
+// success.
+func (*changeOps) SetWritable(_ context.Context, path string) error {
 	return os.Chmod(path, 0755)
 }
 
