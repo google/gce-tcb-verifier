@@ -55,6 +55,9 @@ var (
 	ErrUnknownFormat = errors.New("unknown attestation format")
 	// ErrEventLogPathEmpty is returned when the event log path in Options is empty.
 	ErrEventLogPathEmpty = errors.New("event log path is empty")
+	// ErrNoObjectName is returned when the endorsement must be fetched from the network but the
+	// GCS object name could not be determined from the attestation.
+	ErrNoObjectName = errors.New("could not determine endorsement object name from attestation")
 )
 
 const (
@@ -154,12 +157,20 @@ func (opts *Options) fromEventLog() ([]byte, error) {
 	return nil, fmt.Errorf("matching sp800155 firmware manufacturer %v not found", opts.FirmwareManufacturer)
 }
 
+// fromSevSnpAttestationProto returns the GCE endorsement from the attestation's certificate table
+// if present, along with the GCS object name for the attestation's measurement. The object name
+// is always computed independently of whether the endorsement was found so that callers can
+// fetch the GCS copy (e.g., with ForceFetch). The object name is empty if the attestation does
+// not carry a well-formed measurement.
 func fromSevSnpAttestationProto(at *spb.Attestation) ([]byte, string, error) {
-	if out, err := extractsev.FromAttestation(at); err == nil {
-		return out, "", nil
+	var objectName string
+	if meas := at.GetReport().GetMeasurement(); len(meas) == abi.MeasurementSize {
+		objectName = extractsev.GCETcbObjectName(sev.GCEUefiFamilyID, meas)
 	}
-	meas := at.GetReport().GetMeasurement()
-	return nil, extractsev.GCETcbObjectName(sev.GCEUefiFamilyID, meas), nil
+	if out, err := extractsev.FromAttestation(at); err == nil {
+		return out, objectName, nil
+	}
+	return nil, objectName, nil
 }
 
 func fromTdxAttestationProto(at *tpb.QuoteV4) string {
@@ -289,6 +300,10 @@ func Endorsement(opts *Options) (out []byte, err error) {
 	// Then try the internet.
 	if opts.Getter == nil {
 		internetErr = ErrGetterNil
+	} else if objectName == "" {
+		// Never fetch the bucket root: GCS serves a 200 bucket listing for it, which is not an
+		// endorsement.
+		internetErr = ErrNoObjectName
 	} else {
 		endorsement, internetErr = opts.Getter.Get(verify.GCETcbURL(objectName))
 		if internetErr == nil {
