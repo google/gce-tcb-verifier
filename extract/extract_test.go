@@ -89,6 +89,15 @@ func TestExtractEndorsement(t *testing.T) {
 			"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.binarypb": {{Body: []byte("ding ding")}},
 		},
 	}
+	// gcsGetter serves a GCS copy that differs from the auxblob endorsement so tests can tell
+	// which source was used. It also serves the bucket root like GCS does (a 200 listing) to
+	// catch fetches with an empty object name.
+	gcsGetter := &test.Getter{
+		Responses: map[string][]test.GetResponse{
+			"https://storage.googleapis.com/gce_tcb_integrity/ovmf_x64_csm/sevsnp/000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.binarypb": {{Body: []byte("from gcs")}},
+			"https://storage.googleapis.com/gce_tcb_integrity/": {{Body: []byte("<ListBucketResult/>")}},
+		},
+	}
 	tcs := []struct {
 		name    string
 		opts    *Options
@@ -159,6 +168,51 @@ func TestExtractEndorsement(t *testing.T) {
 				Getter:   goodGetter,
 			},
 			want: []byte("ding ding"),
+		},
+		{
+			name: "force fetch with auxblob from provider",
+			opts: &Options{
+				Provider:   xtraqp,
+				Getter:     gcsGetter,
+				ForceFetch: true,
+			},
+			want: []byte("from gcs"),
+		},
+		{
+			name: "force fetch with auxblob given raw quote",
+			opts: &Options{
+				Quote:      goodQuote,
+				Getter:     gcsGetter,
+				ForceFetch: true,
+			},
+			want: []byte("from gcs"),
+		},
+		{
+			name: "force fetch with auxblob given serialized snp attestation",
+			opts: &Options{
+				Quote:      goodAttestation,
+				Getter:     gcsGetter,
+				ForceFetch: true,
+			},
+			want: []byte("from gcs"),
+		},
+		{
+			name: "force fetch without auxblob from provider",
+			opts: &Options{
+				Provider:   noextraqp,
+				Getter:     gcsGetter,
+				ForceFetch: true,
+			},
+			want: []byte("from gcs"),
+		},
+		{
+			name: "force fetch just certs without measurement",
+			opts: &Options{
+				Quote:      goodQuote[abi.ReportSize:],
+				Getter:     gcsGetter,
+				ForceFetch: true,
+			},
+			wantErr: ErrNoObjectName.Error(),
 		},
 		{
 			name: "RIM variable",
