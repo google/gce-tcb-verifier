@@ -137,3 +137,34 @@ func TestGCETcbObjectName(t *testing.T) {
 		})
 	}
 }
+
+func TestGCETcbSVSMObjectName(t *testing.T) {
+	tcs := []struct {
+		name        string
+		familyID    string
+		measurement []byte
+		want        string
+	}{
+		{
+			name:        "ovmf",
+			familyID:    sev.GCEUefiFamilyID,
+			measurement: []byte{3, 1, 2},
+			want:        "ovmf_x64_csm/svsm/030102.igvm",
+		},
+		{
+			name:        "unknown",
+			familyID:    "not even a guid",
+			measurement: []byte{3, 1, 2},
+			want:        "unknown/svsm/030102.igvm",
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			got := GCETcbSVSMObjectName(tc.familyID, tc.measurement)
+			if diff := cmp.Diff(got, tc.want); diff != "" {
+				t.Fatalf("GCETcbSVSMObjectName(%v, %v) returned an unexpected diff (-got +want): %v",
+					tc.familyID, tc.measurement, diff)
+			}
+		})
+	}
+}

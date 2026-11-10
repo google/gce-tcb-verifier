@@ -69,3 +69,9 @@ func FromCertTable(table []byte) ([]byte, error) {
 	}
 	return t.GetByGUIDString(sev.GCEFwCertGUID)
 }
+
+// GCETcbSVSMObjectName returns the expected object name within a GCS bucket for the SVSM IGVM
+// image whose SEV-SNP launch measurement (VMSevSnp.svsm_measurement) is the given measurement.
+func GCETcbSVSMObjectName(familyID string, measurement []byte) string {
+	return fmt.Sprintf("%s/svsm/%s.igvm", familyIDObjectPrefix(familyID), hex.EncodeToString(measurement))
+}
