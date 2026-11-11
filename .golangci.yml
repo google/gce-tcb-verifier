@@ -1,0 +1,25 @@
+version: "2"
+
+linters:
+  disable:
+    - errcheck
+  enable:
+    - misspell
+    - revive
+  settings:
+    govet:
+      disable:
+        - inline
+    staticcheck:
+      checks:
+        - all
+        - -QF*
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
