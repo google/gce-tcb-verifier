@@ -85,7 +85,9 @@ func (b *bearerGetter) Get(url string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request for %q: %v", url, err)
 	}
-	req.Header.Set("Authorization", "Bearer "+b.token)
+	if req.URL != nil && req.URL.Scheme == "https" && req.URL.Hostname() == "storage.googleapis.com" {
+		req.Header.Set("Authorization", "Bearer "+b.token)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %q: %v", url, err)
