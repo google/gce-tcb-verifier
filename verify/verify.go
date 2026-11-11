@@ -144,6 +144,9 @@ func EndorsementProto(endorsement *epb.VMLaunchEndorsement, opts *Options) error
 		return fmt.Errorf("could not unmarshal golden measurement: %v", err)
 	}
 
+	if golden.GetTimestamp() == nil {
+		return fmt.Errorf("endorsement is missing required timestamp")
+	}
 	checkProvenance := timeproto.From(golden.GetTimestamp()).After(uefiReleaseChangeDate)
 	if checkProvenance && golden.ClSpec == 0 && len(golden.Commit) == 0 {
 		return fmt.Errorf("missing provenance information")

@@ -250,6 +250,18 @@ func TestVerify(t *testing.T) {
 			snp:         &verify.SNPOptions{},
 			wantErr:     verify.ErrNoEndorsementCert.Error(),
 		},
+		{
+			name: "missing timestamp",
+			endorsement: &epb.VMLaunchEndorsement{
+				SerializedUefiGolden: func() []byte {
+					b, _ := proto.Marshal(&epb.VMGoldenMeasurement{})
+					return b
+				}(),
+			},
+			pool:    pool,
+			snp:     &verify.SNPOptions{},
+			wantErr: "endorsement is missing required timestamp",
+		},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
