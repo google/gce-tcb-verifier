@@ -8,34 +8,37 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release:
+    permissions:
+      contents: write
     strategy:
       matrix:
-        go-version: [1.20.x]
+        go-version: [1.26.x]
         os: [ubuntu-latest]
 
     name: Release for (${{ matrix.os}}, Go ${{ matrix.go-version }})
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
       - shell: bash
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - id: cache
-        uses: actions/cache@v3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: dist/${{ matrix.os }}
           key: ${{ matrix.go }}-${{ env.sha_short }}
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         if: success() && startsWith(github.ref, 'refs/tags/') && steps.cache.outputs.cache-hit != 'true'
         with:
           distribution: goreleaser

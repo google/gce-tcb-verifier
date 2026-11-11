@@ -1,8 +1,6 @@
-go 1.20
+go 1.26.2
 
 use (
 	.
 	./gcetcbendorsement
 )
-
-replace github.com/google/gce-tcb-verifier v0.0.0-20240429170429-bb978e90de93 => ./
